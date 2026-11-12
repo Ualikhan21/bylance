@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ru" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bylance — Каталог техники и оценка iPhone в Алматы</title>
+    <meta name="description" content="Оригинальная техника Apple, Dyson и фототехника в Алматы. Интерактивная оценка и скупка iPhone за 1 минуту, рассрочка Kaspi и Halyk, Trade-In и заказ в WhatsApp." />
+    <meta property="og:title" content="Bylance — Каталог техники и оценка iPhone в Алматы" />
+    <meta property="og:description" content="Оригинальная техника Apple, Dyson и фототехника в Алматы. Калькулятор выкупа iPhone, Trade-In, рассрочка Kaspi/Halyk и быстрый заказ в WhatsApp." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <script>
+      (function() {
+        try {
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var manual = localStorage.getItem('bylance_manual_theme');
+          if (prefersDark || manual === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body class="bg-slate-50 dark:bg-[#0b0e17] text-slate-900 dark:text-slate-100 antialiased selection:bg-[#7a0f2d]/20 selection:text-[#7a0f2d] dark:selection:bg-[#7a0f2d]/40 dark:selection:text-[#ffead1]">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
