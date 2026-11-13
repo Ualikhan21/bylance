@@ -42,6 +42,7 @@ import {
   PRODUCT_MODELS,
   formatPrice,
   formatStorage,
+  getVariantPrices,
   USED_IPHONES_BUYBACK,
   BATTERY_RULES,
   BATTERY_PRESETS,
@@ -380,6 +381,8 @@ export default function App() {
         return next;
       }
 
+      const variantPrices = getVariantPrices(variant, chosenColor?.id);
+
       const newItem: CartItem = {
         variantId: variant.id,
         modelId: model.id,
@@ -389,7 +392,7 @@ export default function App() {
         colorName: chosenColor?.name,
         paymentMethod: itemPaymentMethod,
         quantity: 1,
-        prices: variant.prices,
+        prices: variantPrices,
       };
 
       return [...prev, newItem];
@@ -556,7 +559,8 @@ export default function App() {
     chosenColor?: ProductColor
   ) => {
     const methodObj = PAYMENT_METHODS.find((m) => m.id === methodId) || PAYMENT_METHODS[2];
-    const priceVal = variant.prices[methodId];
+    const variantPrices = getVariantPrices(variant, chosenColor?.id);
+    const priceVal = variantPrices[methodId];
     const priceStr = priceVal !== null && priceVal !== undefined
       ? formatPrice(priceVal)
       : 'Цена по запросу';
@@ -635,7 +639,12 @@ export default function App() {
   }, [generateWhatsAppMessage]);
 
   const baseUrl = import.meta.env.BASE_URL || '/';
-  const logoSrc = `${baseUrl.replace(/\/$/, '')}/logo.svg`;
+  const cleanBase = baseUrl.replace(/\/$/, '');
+  const logoSrc = `${cleanBase}/logo.svg`;
+  const founderImgPath = SITE_INFO.founder?.image || '/aruzhan.jpg';
+  const founderSrc = founderImgPath.startsWith('http')
+    ? founderImgPath
+    : `${cleanBase}/${founderImgPath.replace(/^\//, '')}`;
 
   return (
     <div className="min-h-screen flex flex-col font-sans bg-[#f8f9fb] dark:bg-[#0a0d14] text-slate-900 dark:text-slate-100 transition-colors duration-200">
@@ -1208,27 +1217,31 @@ export default function App() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
               {filteredModels.map((model) => {
+                const sel = cardSelections[model.id] || {};
+                const activeColor = model.colorOptions?.find((c) => c.id === sel.colorId) || model.colorOptions?.[0];
+                const displayImage = activeColor?.image || model.image;
                 const activeVariant = getActiveVariant(model);
                 const itemPayment = getCardPaymentMethod(model.id);
-                const currentPrice = activeVariant.prices[itemPayment];
+
+                const activePrices = getVariantPrices(activeVariant, activeColor?.id);
+                const currentPrice = activePrices[itemPayment];
                 const activeMethodObj = PAYMENT_METHODS.find((m) => m.id === itemPayment) || PAYMENT_METHODS[2];
 
                 const cartMatch = cart.find(
-                  (c) => c.variantId === activeVariant.id && c.paymentMethod === itemPayment
+                  (c) => c.variantId === activeVariant.id &&
+                         c.paymentMethod === itemPayment &&
+                         c.colorName === (activeColor ? activeColor.name : undefined)
                 );
                 const cartQty = cartMatch ? cartMatch.quantity : 0;
 
-                const sel = cardSelections[model.id] || {};
                 const activeSim = sel.simType || (model.simOptions ? model.simOptions[0] : undefined);
                 const activeStorage = sel.storage || (model.storageOptions ? model.storageOptions[0] : undefined);
                 const activeSize = sel.size || (model.sizeOptions ? model.sizeOptions[0] : undefined);
-                const activeColor = model.colorOptions?.find((c) => c.id === sel.colorId) || model.colorOptions?.[0];
-                const displayImage = activeColor?.image || model.image;
 
-                const kaspiPrice = activeVariant.prices.kaspi;
-                const halykPrice = activeVariant.prices.halyk;
-                const promoPrice = activeVariant.prices.promo;
-                const cashPrice = activeVariant.prices.cash;
+                const kaspiPrice = activePrices.kaspi;
+                const halykPrice = activePrices.halyk;
+                const promoPrice = activePrices.promo;
+                const cashPrice = activePrices.cash;
 
                 const kaspi12 = kaspiPrice ? Math.round(kaspiPrice / 12) : null;
                 const kaspi24 = kaspiPrice ? Math.round(kaspiPrice / 24) : null;
@@ -1330,6 +1343,15 @@ export default function App() {
                                 );
                               })}
                             </div>
+                            {activeColor && activeVariant.colorPrices?.[activeColor.id] && (
+                              <div className="text-[10px] sm:text-[11px] font-bold text-[#7a0f2d] dark:text-[#ffead1] bg-[#ffead1]/70 dark:bg-[#7a0f2d]/30 px-2.5 py-1 rounded-xl border border-[#7a0f2d]/25 flex items-center justify-between">
+                                <span className="flex items-center gap-1.5 truncate">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#7a0f2d] dark:bg-[#ffead1] shrink-0" />
+                                  <span className="truncate">Спеццена для цвета {activeColor.name.split(' (')[0]}</span>
+                                </span>
+                                <span className="font-mono font-black shrink-0 ml-1.5">{formatPrice(currentPrice || 0)}</span>
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -1676,7 +1698,7 @@ export default function App() {
                   
                   {/* Founder Photo Image with Graceful Stylized Fallback */}
                   <img
-                    src={SITE_INFO.founder?.image || '/aruzhan.jpg'}
+                    src={founderSrc}
                     alt={SITE_INFO.founder?.name || 'Аружан Жеткерген'}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                     onError={(e) => {

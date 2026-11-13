@@ -134,6 +134,13 @@ export const CATEGORIES: CategoryInfo[] = [
   { id: 'other', name: 'Фото и гаджеты', description: 'Фотокамеры, Ray-Ban Meta, DJI, Яндекс Станция' },
 ];
 
+export interface VariantPrices {
+  kaspi: number | null;
+  halyk: number | null;
+  promo: number | null;
+  cash: number | null;
+}
+
 // ВАРИАНТ ТОВАРА
 export interface ProductVariant {
   id: string;
@@ -141,12 +148,15 @@ export interface ProductVariant {
   simType?: 'ESIM' | 'SIM';
   storage?: string;
   size?: string;
-  prices: {
-    kaspi: number | null;
-    halyk: number | null;
-    promo: number | null;
-    cash: number | null;
-  };
+  prices: VariantPrices;
+  colorPrices?: Record<string, VariantPrices>;
+}
+
+export function getVariantPrices(variant: ProductVariant, colorId?: string): VariantPrices {
+  if (colorId && variant.colorPrices && variant.colorPrices[colorId]) {
+    return variant.colorPrices[colorId];
+  }
+  return variant.prices;
 }
 
 // ЦВЕТ ТОВАРА (с мини-картинкой и плашкой)
@@ -160,9 +170,9 @@ export interface ProductColor {
 // ГОТОВЫЕ ЦВЕТОВЫЕ НАБОРЫ (пользователь может менять картинки на свои в любое время)
 // ГОТОВЫЕ ЦВЕТОВЫЕ НАБОРЫ С ПОДДЕРЖКОЙ WEBP ИЗОБРАЖЕНИЙ
 export const IPHONE_18_PRO_COLORS: ProductColor[] = [
+  { id: 'burgundy', name: 'Burgundy (Бордовый титан)', hex: '#7a0f2d', image: WEBP_IMAGES.iphone18ProRed },
   { id: 'black', name: 'Black Titanium (Чёрный)', hex: '#212124', image: WEBP_IMAGES.iphone18ProBlack },
   { id: 'blue', name: 'Deep Blue (Тёмно-синий)', hex: '#27384e', image: WEBP_IMAGES.iphone18ProBlue },
-  { id: 'red', name: 'Crimson Red (Красный титан)', hex: '#7a0f2d', image: WEBP_IMAGES.iphone18ProRed },
   { id: 'silver', name: 'Silver Titanium (Серебристый)', hex: '#e3e4e6', image: WEBP_IMAGES.iphone18ProSilver },
 ];
 
@@ -287,6 +297,10 @@ export const PRODUCT_MODELS: ProductModel[] = [
         simType: 'ESIM',
         storage: '256 ГБ',
         prices: { kaspi: 864000, halyk: 900000, promo: 750000, cash: 720000 },
+        colorPrices: {
+          burgundy: { kaspi: 900000, halyk: 937500, promo: 781200, cash: 750000 },
+          red: { kaspi: 900000, halyk: 937500, promo: 781200, cash: 750000 },
+        },
       },
       {
         id: '18-pro-esim-512',
@@ -294,6 +308,10 @@ export const PRODUCT_MODELS: ProductModel[] = [
         simType: 'ESIM',
         storage: '512 ГБ',
         prices: { kaspi: 996000, halyk: 1037500, promo: 864000, cash: 830000 },
+        colorPrices: {
+          burgundy: { kaspi: 1032000, halyk: 1075000, promo: 895200, cash: 860000 },
+          red: { kaspi: 1032000, halyk: 1075000, promo: 895200, cash: 860000 },
+        },
       },
       {
         id: '18-pro-esim-1tb',
@@ -301,6 +319,10 @@ export const PRODUCT_MODELS: ProductModel[] = [
         simType: 'ESIM',
         storage: '1 ТБ',
         prices: { kaspi: 1260000, halyk: 1312500, promo: 1092000, cash: 1050000 },
+        colorPrices: {
+          burgundy: { kaspi: 1296000, halyk: 1350000, promo: 1123200, cash: 1080000 },
+          red: { kaspi: 1296000, halyk: 1350000, promo: 1123200, cash: 1080000 },
+        },
       },
       {
         id: '18-pro-sim-256',
@@ -308,6 +330,10 @@ export const PRODUCT_MODELS: ProductModel[] = [
         simType: 'SIM',
         storage: '256 ГБ',
         prices: { kaspi: 900000, halyk: 937500, promo: 780000, cash: 750000 },
+        colorPrices: {
+          burgundy: { kaspi: 936000, halyk: 975000, promo: 811200, cash: 780000 },
+          red: { kaspi: 936000, halyk: 975000, promo: 811200, cash: 780000 },
+        },
       },
       {
         id: '18-pro-sim-512',
@@ -315,6 +341,10 @@ export const PRODUCT_MODELS: ProductModel[] = [
         simType: 'SIM',
         storage: '512 ГБ',
         prices: { kaspi: 1044000, halyk: 1087500, promo: 905000, cash: 870000 },
+        colorPrices: {
+          burgundy: { kaspi: 1116000, halyk: 1162500, promo: 967200, cash: 930000 },
+          red: { kaspi: 1116000, halyk: 1162500, promo: 967200, cash: 930000 },
+        },
       },
       {
         id: '18-pro-sim-1tb',
@@ -322,6 +352,10 @@ export const PRODUCT_MODELS: ProductModel[] = [
         simType: 'SIM',
         storage: '1 ТБ',
         prices: { kaspi: 1320000, halyk: 1375000, promo: 1144000, cash: 1100000 },
+        colorPrices: {
+          burgundy: { kaspi: 1356000, halyk: 1412500, promo: 1175200, cash: 1130000 },
+          red: { kaspi: 1356000, halyk: 1412500, promo: 1175200, cash: 1130000 },
+        },
       },
     ],
   },
@@ -346,6 +380,10 @@ export const PRODUCT_MODELS: ProductModel[] = [
         simType: 'ESIM',
         storage: '256 ГБ',
         prices: { kaspi: 984000, halyk: 1025000, promo: 853000, cash: 820000 },
+        colorPrices: {
+          burgundy: { kaspi: 1020000, halyk: 1062500, promo: 884200, cash: 850000 },
+          red: { kaspi: 1020000, halyk: 1062500, promo: 884200, cash: 850000 },
+        },
       },
       {
         id: '18-pm-esim-512',
@@ -353,6 +391,10 @@ export const PRODUCT_MODELS: ProductModel[] = [
         simType: 'ESIM',
         storage: '512 ГБ',
         prices: { kaspi: 1164000, halyk: 1212500, promo: 1010000, cash: 970000 },
+        colorPrices: {
+          burgundy: { kaspi: 1200000, halyk: 1250000, promo: 1041200, cash: 1000000 },
+          red: { kaspi: 1200000, halyk: 1250000, promo: 1041200, cash: 1000000 },
+        },
       },
       {
         id: '18-pm-esim-1tb',
@@ -360,6 +402,10 @@ export const PRODUCT_MODELS: ProductModel[] = [
         simType: 'ESIM',
         storage: '1 ТБ',
         prices: { kaspi: 1416000, halyk: 1475000, promo: 1248000, cash: 1180000 },
+        colorPrices: {
+          burgundy: { kaspi: 1457000, halyk: 1512500, promo: 1279200, cash: 1210000 },
+          red: { kaspi: 1457000, halyk: 1512500, promo: 1279200, cash: 1210000 },
+        },
       },
       {
         id: '18-pm-esim-2tb',
@@ -367,6 +413,10 @@ export const PRODUCT_MODELS: ProductModel[] = [
         simType: 'ESIM',
         storage: '2 ТБ',
         prices: { kaspi: 1680000, halyk: 1750000, promo: 1456000, cash: 1400000 },
+        colorPrices: {
+          burgundy: { kaspi: 1716000, halyk: 1787500, promo: 1487200, cash: 1430000 },
+          red: { kaspi: 1716000, halyk: 1787500, promo: 1487200, cash: 1430000 },
+        },
       },
       {
         id: '18-pm-sim-256',
@@ -374,6 +424,10 @@ export const PRODUCT_MODELS: ProductModel[] = [
         simType: 'SIM',
         storage: '256 ГБ',
         prices: { kaspi: 1020000, halyk: 1062500, promo: 884000, cash: 850000 },
+        colorPrices: {
+          burgundy: { kaspi: 1056000, halyk: 1100000, promo: 915200, cash: 880000 },
+          red: { kaspi: 1056000, halyk: 1100000, promo: 915200, cash: 880000 },
+        },
       },
       {
         id: '18-pm-sim-512',
@@ -381,6 +435,10 @@ export const PRODUCT_MODELS: ProductModel[] = [
         simType: 'SIM',
         storage: '512 ГБ',
         prices: { kaspi: 1200000, halyk: 1250000, promo: 1040000, cash: 1000000 },
+        colorPrices: {
+          burgundy: { kaspi: 1236000, halyk: 1287500, promo: 1071200, cash: 1030000 },
+          red: { kaspi: 1236000, halyk: 1287500, promo: 1071200, cash: 1030000 },
+        },
       },
       {
         id: '18-pm-sim-1tb',
@@ -388,6 +446,10 @@ export const PRODUCT_MODELS: ProductModel[] = [
         simType: 'SIM',
         storage: '1 ТБ',
         prices: { kaspi: 1500000, halyk: 1562500, promo: 1300000, cash: 1250000 },
+        colorPrices: {
+          burgundy: { kaspi: 1536000, halyk: 1600000, promo: 1331200, cash: 1280000 },
+          red: { kaspi: 1536000, halyk: 1600000, promo: 1331200, cash: 1280000 },
+        },
       },
       {
         id: '18-pm-sim-2tb',
@@ -395,6 +457,10 @@ export const PRODUCT_MODELS: ProductModel[] = [
         simType: 'SIM',
         storage: '2 ТБ',
         prices: { kaspi: 1800000, halyk: 1875000, promo: 1560000, cash: 1500000 },
+        colorPrices: {
+          burgundy: { kaspi: 1836000, halyk: 1912500, promo: 1591200, cash: 1530000 },
+          red: { kaspi: 1836000, halyk: 1912500, promo: 1591200, cash: 1530000 },
+        },
       },
     ],
   },
@@ -1297,82 +1363,82 @@ export const USED_IPHONES_BUYBACK: UsedGeneration[] = [
   {
     gen: "18",
     models: [
-      { label: "Обычный", name: "iPhone 18", prices: { 128: 330000, 256: 375000, 512: 435000 } },
-      { label: "Air", name: "iPhone Air", prices: { 256: 375000, 512: 445000, 1024: 510000 } },
-      { label: "Pro", name: "iPhone 18 Pro", prices: { 256: 475000, 512: 545000, 1024: 620000 } },
-      { label: "Pro Max", name: "iPhone 18 Pro Max", prices: { 256: 545000, 512: 630000, 1024: 710000 } },
+      { label: "Обычный", name: "iPhone 18", prices: { 128: 275000, 256: 320000, 512: 365000 } },
+      { label: "Air", name: "iPhone Air", prices: { 256: 320000, 512: 375000, 1024: 430000 } },
+      { label: "Pro", name: "iPhone 18 Pro", prices: { 256: 405000, 512: 460000, 1024: 525000 } },
+      { label: "Pro Max", name: "iPhone 18 Pro Max", prices: { 256: 460000, 512: 530000, 1024: 600000 } },
     ],
   },
   {
     gen: "17",
     models: [
-      { label: "Обычный", name: "iPhone 17", prices: { 128: 255000, 256: 300000, 512: 365000 } },
-      { label: "Air", name: "iPhone Air", prices: { 256: 300000, 512: 355000, 1024: 410000 } },
-      { label: "Pro", name: "iPhone 17 Pro", prices: { 256: 410000, 512: 475000, 1024: 545000 } },
-      { label: "Pro Max", name: "iPhone 17 Pro Max", prices: { 256: 475000, 512: 545000, 1024: 620000 } },
+      { label: "Обычный", name: "iPhone 17", prices: { 128: 215000, 256: 255000, 512: 310000 } },
+      { label: "Air", name: "iPhone Air", prices: { 256: 255000, 512: 300000, 1024: 350000 } },
+      { label: "Pro", name: "iPhone 17 Pro", prices: { 256: 350000, 512: 405000, 1024: 460000 } },
+      { label: "Pro Max", name: "iPhone 17 Pro Max", prices: { 256: 405000, 512: 460000, 1024: 525000 } },
     ],
   },
   {
     gen: "16",
     models: [
-      { label: "16e", name: "iPhone 16e", prices: { 128: 155000, 256: 180000, 512: 215000 } },
-      { label: "Обычный", name: "iPhone 16", prices: { 128: 170000, 256: 205000, 512: 245000 } },
-      { label: "Plus", name: "iPhone 16 Plus", prices: { 128: 190000, 256: 225000, 512: 270000 } },
-      { label: "Pro", name: "iPhone 16 Pro", prices: { 128: 260000, 256: 295000, 512: 350000, 1024: 405000 } },
-      { label: "Pro Max", name: "iPhone 16 Pro Max", prices: { 256: 360000, 512: 415000, 1024: 470000 } },
+      { label: "16e", name: "iPhone 16e", prices: { 128: 130000, 256: 150000, 512: 185000 } },
+      { label: "Обычный", name: "iPhone 16", prices: { 128: 145000, 256: 175000, 512: 205000 } },
+      { label: "Plus", name: "iPhone 16 Plus", prices: { 128: 160000, 256: 195000, 512: 230000 } },
+      { label: "Pro", name: "iPhone 16 Pro", prices: { 128: 220000, 256: 250000, 512: 295000, 1024: 345000 } },
+      { label: "Pro Max", name: "iPhone 16 Pro Max", prices: { 256: 305000, 512: 350000, 1024: 400000 } },
     ],
   },
   {
     gen: "15",
     models: [
-      { label: "Обычный", name: "iPhone 15", prices: { 128: 135000, 256: 160000, 512: 195000 } },
-      { label: "Plus", name: "iPhone 15 Plus", prices: { 128: 150000, 256: 180000, 512: 215000 } },
-      { label: "Pro", name: "iPhone 15 Pro", prices: { 128: 200000, 256: 230000, 512: 270000, 1024: 315000 } },
-      { label: "Pro Max", name: "iPhone 15 Pro Max", prices: { 256: 295000, 512: 340000, 1024: 385000 } },
+      { label: "Обычный", name: "iPhone 15", prices: { 128: 115000, 256: 135000, 512: 165000 } },
+      { label: "Plus", name: "iPhone 15 Plus", prices: { 128: 125000, 256: 150000, 512: 180000 } },
+      { label: "Pro", name: "iPhone 15 Pro", prices: { 128: 170000, 256: 195000, 512: 230000, 1024: 270000 } },
+      { label: "Pro Max", name: "iPhone 15 Pro Max", prices: { 256: 250000, 512: 290000, 1024: 325000 } },
     ],
   },
   {
     gen: "14",
     models: [
-      { label: "Обычный", name: "iPhone 14", prices: { 128: 105000, 256: 120000, 512: 150000 } },
-      { label: "Plus", name: "iPhone 14 Plus", prices: { 128: 115000, 256: 135000, 512: 160000 } },
-      { label: "Pro", name: "iPhone 14 Pro", prices: { 128: 170000, 256: 195000, 512: 225000, 1024: 255000 } },
-      { label: "Pro Max", name: "iPhone 14 Pro Max", prices: { 128: 205000, 256: 230000, 512: 265000, 1024: 300000 } },
+      { label: "Обычный", name: "iPhone 14", prices: { 128: 90000, 256: 105000, 512: 125000 } },
+      { label: "Plus", name: "iPhone 14 Plus", prices: { 128: 100000, 256: 115000, 512: 135000 } },
+      { label: "Pro", name: "iPhone 14 Pro", prices: { 128: 145000, 256: 165000, 512: 195000, 1024: 215000 } },
+      { label: "Pro Max", name: "iPhone 14 Pro Max", prices: { 128: 175000, 256: 195000, 512: 225000, 1024: 255000 } },
     ],
   },
   {
     gen: "13",
     models: [
-      { label: "mini", name: "iPhone 13 mini", prices: { 128: 75000, 256: 90000, 512: 110000 } },
-      { label: "Обычный", name: "iPhone 13", prices: { 128: 90000, 256: 105000, 512: 125000 } },
-      { label: "Pro", name: "iPhone 13 Pro", prices: { 128: 130000, 256: 150000, 512: 170000, 1024: 195000 } },
-      { label: "Pro Max", name: "iPhone 13 Pro Max", prices: { 128: 160000, 256: 175000, 512: 205000, 1024: 230000 } },
+      { label: "mini", name: "iPhone 13 mini", prices: { 128: 65000, 256: 75000, 512: 95000 } },
+      { label: "Обычный", name: "iPhone 13", prices: { 128: 75000, 256: 90000, 512: 110000 } },
+      { label: "Pro", name: "iPhone 13 Pro", prices: { 128: 110000, 256: 125000, 512: 145000, 1024: 165000 } },
+      { label: "Pro Max", name: "iPhone 13 Pro Max", prices: { 128: 135000, 256: 150000, 512: 175000, 1024: 195000 } },
     ],
   },
   {
     gen: "12",
     models: [
-      { label: "mini", name: "iPhone 12 mini", prices: { 64: 50000, 128: 60000, 256: 65000 } },
-      { label: "Обычный", name: "iPhone 12", prices: { 64: 65000, 128: 70000, 256: 85000 } },
-      { label: "Pro", name: "iPhone 12 Pro", prices: { 128: 95000, 256: 105000, 512: 125000 } },
-      { label: "Pro Max", name: "iPhone 12 Pro Max", prices: { 128: 110000, 256: 125000, 512: 145000 } },
+      { label: "mini", name: "iPhone 12 mini", prices: { 64: 40000, 128: 50000, 256: 55000 } },
+      { label: "Обычный", name: "iPhone 12", prices: { 64: 55000, 128: 60000, 256: 70000 } },
+      { label: "Pro", name: "iPhone 12 Pro", prices: { 128: 80000, 256: 90000, 512: 110000 } },
+      { label: "Pro Max", name: "iPhone 12 Pro Max", prices: { 128: 95000, 256: 110000, 512: 120000 } },
     ],
   },
   {
     gen: "11",
     models: [
-      { label: "Обычный", name: "iPhone 11", prices: { 64: 50000, 128: 55000, 256: 65000 } },
-      { label: "Pro", name: "iPhone 11 Pro", prices: { 64: 65000, 256: 80000, 512: 95000 } },
-      { label: "Pro Max", name: "iPhone 11 Pro Max", prices: { 64: 80000, 256: 95000, 512: 110000 } },
+      { label: "Обычный", name: "iPhone 11", prices: { 64: 40000, 128: 45000, 256: 55000 } },
+      { label: "Pro", name: "iPhone 11 Pro", prices: { 64: 55000, 256: 65000, 512: 80000 } },
+      { label: "Pro Max", name: "iPhone 11 Pro Max", prices: { 64: 65000, 256: 80000, 512: 95000 } },
     ],
   },
   {
     gen: "X",
     models: [
-      { label: "X", name: "iPhone X", prices: { 64: 40000, 256: 50000 } },
-      { label: "XR", name: "iPhone XR", prices: { 64: 50000, 128: 55000, 256: 65000 } },
-      { label: "XS", name: "iPhone XS", prices: { 64: 50000, 256: 60000, 512: 65000 } },
-      { label: "XS Max", name: "iPhone XS Max", prices: { 64: 60000, 256: 70000, 512: 75000 } },
+      { label: "X", name: "iPhone X", prices: { 64: 30000, 256: 40000 } },
+      { label: "XR", name: "iPhone XR", prices: { 64: 40000, 128: 45000, 256: 55000 } },
+      { label: "XS", name: "iPhone XS", prices: { 64: 40000, 256: 50000, 512: 55000 } },
+      { label: "XS Max", name: "iPhone XS Max", prices: { 64: 50000, 256: 60000, 512: 65000 } },
     ],
   },
 ];
