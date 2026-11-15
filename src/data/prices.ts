@@ -23,7 +23,8 @@ export interface StoreAddress {
 export const SITE_INFO = {
   shopName: "Bylance",
   city: "Алматы",
-  logoPath: "/logo.svg",
+  logoPath: "/assets/aistudio/Gemini_Generated_Image_fizavafizavafiza_cfb77561.webp",
+  faviconPath: "/logo.svg",
   // Основной телефон и WhatsApp магазина: 8771-500-50-60
   whatsapp: "77715005060",
   whatsappFormatted: "+7 (771) 500-50-60",
@@ -170,28 +171,34 @@ export interface ProductColor {
 // ГОТОВЫЕ ЦВЕТОВЫЕ НАБОРЫ (пользователь может менять картинки на свои в любое время)
 // ГОТОВЫЕ ЦВЕТОВЫЕ НАБОРЫ С ПОДДЕРЖКОЙ WEBP ИЗОБРАЖЕНИЙ
 export const IPHONE_18_PRO_COLORS: ProductColor[] = [
-  { id: 'burgundy', name: 'Burgundy (Бордовый титан)', hex: '#7a0f2d', image: WEBP_IMAGES.iphone18ProRed },
-  { id: 'black', name: 'Black Titanium (Чёрный)', hex: '#212124', image: WEBP_IMAGES.iphone18ProBlack },
-  { id: 'blue', name: 'Deep Blue (Тёмно-синий)', hex: '#27384e', image: WEBP_IMAGES.iphone18ProBlue },
-  { id: 'silver', name: 'Silver Titanium (Серебристый)', hex: '#e3e4e6', image: WEBP_IMAGES.iphone18ProSilver },
+  { id: 'burgundy', name: 'Burgundy (Бургунди/Бордовый)', hex: '#7a0f2d', image: WEBP_IMAGES.iphone18ProRed },
+  { id: 'glacier', name: 'Glacier (Светло-голубой)', hex: '#8fb8d8', image: WEBP_IMAGES.iphone18ProBlue },
+  { id: 'silver', name: 'Silver (Серебристый)', hex: '#e3e4e6', image: WEBP_IMAGES.iphone18ProSilver },
+  { id: 'black', name: 'Black (Чёрный)', hex: '#212124', image: WEBP_IMAGES.iphone18ProBlack },
 ];
 
 export const IPHONE_17_COLORS: ProductColor[] = [
-  { id: 'black', name: 'Black (Чёрный)', hex: '#222326', image: WEBP_IMAGES.iphone17Black },
-  { id: 'blue', name: 'Blue (Синий)', hex: '#3d6389', image: WEBP_IMAGES.iphone17Blue },
-  { id: 'green', name: 'Green (Мятно-зелёный)', hex: '#5b8e78', image: WEBP_IMAGES.iphone17Green },
-  { id: 'purple', name: 'Purple (Лавандовый)', hex: '#9d8db9', image: WEBP_IMAGES.iphone17Purple },
+  { id: 'lavender', name: 'Lavender (Лавандовый)', hex: '#b8a8d8', image: WEBP_IMAGES.iphone17Purple },
+  { id: 'sage', name: 'Sage (Зелёный шалфей)', hex: '#7c9684', image: WEBP_IMAGES.iphone17Green },
+  { id: 'mist-blue', name: 'Mist Blue (Дымчато-голубой)', hex: '#7e9cb8', image: WEBP_IMAGES.iphone17Blue },
   { id: 'white', name: 'White (Белый)', hex: '#f7f7f9', image: WEBP_IMAGES.iphone17White },
+  { id: 'black', name: 'Black (Чёрный)', hex: '#222326', image: WEBP_IMAGES.iphone17Black },
+];
+
+export const IPHONE_17_AIR_COLORS: ProductColor[] = [
+  { id: 'sky-blue', name: 'Sky Blue (Небесно-голубой)', hex: '#9dc2df', image: PRODUCT_IMAGES.iphoneWhite },
+  { id: 'light-gold', name: 'Light Gold (Светло-золотистый)', hex: '#ebd9b5', image: PRODUCT_IMAGES.iphoneDesert },
+  { id: 'cloud-white', name: 'Cloud White (Облачно-белый)', hex: '#f5f5f7', image: PRODUCT_IMAGES.iphoneWhite },
+  { id: 'space-black', name: 'Space Black (Космический чёрный)', hex: '#1d1e20', image: PRODUCT_IMAGES.iphoneBlack },
 ];
 
 export const IPHONE_17_PRO_COLORS: ProductColor[] = [
-  { id: 'blue', name: 'Dark Blue (Синий титан)', hex: '#24374e', image: WEBP_IMAGES.iphone17ProBlue },
-  { id: 'orange', name: 'Cosmic Orange (Оранжевый)', hex: '#d96c34', image: WEBP_IMAGES.iphone17ProOrange },
-  { id: 'white', name: 'White Titanium (Белый титан)', hex: '#f2f2f4', image: WEBP_IMAGES.iphone17ProWhite },
+  { id: 'cosmic-orange', name: 'Cosmic Orange (Космический оранжевый)', hex: '#d96c34', image: WEBP_IMAGES.iphone17ProOrange },
+  { id: 'deep-blue', name: 'Deep Blue (Глубокий синий)', hex: '#24374e', image: WEBP_IMAGES.iphone17ProBlue },
+  { id: 'silver', name: 'Silver (Серебристый)', hex: '#e3e4e6', image: WEBP_IMAGES.iphone17ProWhite },
 ];
 
 export const IPHONE_A16_COLORS: ProductColor[] = [
-  { id: 'blue', name: 'Blue (Синий)', hex: '#3f6795', image: WEBP_IMAGES.iphoneA16Blue },
   { id: 'lightblue', name: 'Light Blue (Голубой)', hex: '#97bfdf', image: WEBP_IMAGES.iphoneA16LightBlue },
   { id: 'pink', name: 'Pink (Розовый)', hex: '#e7a9b6', image: WEBP_IMAGES.iphoneA16Pink },
   { id: 'silver', name: 'Silver (Серебристый)', hex: '#e2e3e5', image: WEBP_IMAGES.iphoneA16Silver },
@@ -508,7 +515,7 @@ export const PRODUCT_MODELS: ProductModel[] = [
     category: 'apple',
     subcategory: 'iPhone 17',
     warranty: '1 год официальной гарантии',
-    image: WEBP_IMAGES.iphone17Black,
+    image: WEBP_IMAGES.iphone17Purple,
     colorOptions: IPHONE_17_COLORS,
     simOptions: ['ESIM', 'SIM'],
     storageOptions: ['256 ГБ'],
@@ -539,7 +546,7 @@ export const PRODUCT_MODELS: ProductModel[] = [
     category: 'apple',
     subcategory: 'iPhone 17',
     warranty: '1 год официальной гарантии',
-    image: WEBP_IMAGES.iphone17ProBlue,
+    image: WEBP_IMAGES.iphone17ProOrange,
     colorOptions: IPHONE_17_PRO_COLORS,
     simOptions: ['ESIM', 'SIM'],
     storageOptions: ['256 ГБ', '512 ГБ', '1 ТБ'],
@@ -598,7 +605,7 @@ export const PRODUCT_MODELS: ProductModel[] = [
     category: 'apple',
     subcategory: 'iPhone 17',
     warranty: '1 год официальной гарантии',
-    image: WEBP_IMAGES.iphone17ProBlue,
+    image: WEBP_IMAGES.iphone17ProOrange,
     colorOptions: IPHONE_17_PRO_COLORS,
     simOptions: ['ESIM', 'SIM'],
     storageOptions: ['256 ГБ', '512 ГБ', '1 ТБ', '2 ТБ'],
@@ -671,7 +678,7 @@ export const PRODUCT_MODELS: ProductModel[] = [
     category: 'apple',
     subcategory: 'iPad',
     warranty: '1 год официальной гарантии',
-    image: WEBP_IMAGES.iphoneA16Blue,
+    image: WEBP_IMAGES.iphoneA16LightBlue,
     colorOptions: IPHONE_A16_COLORS,
     storageOptions: ['128 ГБ', '256 ГБ'],
     variants: [

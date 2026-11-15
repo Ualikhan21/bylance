@@ -48,14 +48,26 @@ import {
   BATTERY_PRESETS,
   BODY_CONDITIONS,
   EXTRAS_OPTIONS,
-  BLOCKED_REASON,
   getEsimDeduction,
   UsedGeneration,
   BodyOption
 } from './data/prices';
 import { KaspiIcon, HalykIcon, PaymentMethodIcon } from './components/PaymentIcons';
 import { ProductImage } from './components/ProductImage';
-import { FAQ_LIST, VALUATION_FAQ_LIST, FaqItem } from './data/faq';
+import { getFaqList, getValuationFaqList } from './data/faq';
+import {
+  Lang,
+  TRANSLATIONS,
+  localizePaymentMethod,
+  localizeCategory,
+  localizeStoreAddress,
+  localizeBodyCondition,
+  localizeExtraLabel,
+  localizeUsedModelLabel,
+  localizeColorName,
+  localizeProductName,
+  localizeSubcategory
+} from './data/i18n';
 
 // Cart Item interface: stores specific variant + chosen payment method + color
 export interface CartItem {
@@ -118,6 +130,31 @@ export default function App() {
       return next;
     });
   };
+
+  // 1.5 LANGUAGE STATE (RU / KK)
+  const [lang, setLang] = useState<Lang>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('bylance_lang');
+      if (saved === 'kk' || saved === 'ru') return saved;
+    }
+    return 'ru';
+  });
+
+  const t = TRANSLATIONS[lang];
+
+  const handleSelectLang = useCallback((nextLang: Lang) => {
+    setLang(nextLang);
+    try {
+      localStorage.setItem('bylance_lang', nextLang);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = lang;
+      document.title = TRANSLATIONS[lang].pageTitle;
+    }
+  }, [lang]);
 
   // 2. GLOBAL PAYMENT METHOD
   const [globalPayment, setGlobalPayment] = useState<PaymentMethodId>(() => {
@@ -211,7 +248,7 @@ export default function App() {
       return {
         price: 0,
         canBuy: false,
-        reason: 'Телефоны с блокировкой iCloud или чужим Apple ID мы не покупаем.',
+        reason: t.blockedCalcReason,
         activeExtrasLabels: [],
       };
     }
@@ -233,10 +270,10 @@ export default function App() {
         if (extra.isEsimOnly) {
           const esimCut = getEsimDeduction(selectedModel.name);
           fixedExtraCut += esimCut;
-          activeExtrasLabels.push(`только eSIM (-${formatPrice(esimCut)})`);
+          activeExtrasLabels.push(t.onlyEsimLabel(formatPrice(esimCut)));
         } else {
           extrasCut += extra.cut;
-          activeExtrasLabels.push(extra.label.toLowerCase());
+          activeExtrasLabels.push(localizeExtraLabel(extra.id, extra.label, lang).toLowerCase());
         }
       }
     });
@@ -253,35 +290,43 @@ export default function App() {
       canBuy: true,
       activeExtrasLabels,
     };
-  }, [selectedModel, selectedStorage, batteryPct, selectedBody, selectedExtras, isBlocked]);
+  }, [selectedModel, selectedStorage, batteryPct, selectedBody, selectedExtras, isBlocked, lang, t]);
 
   // WhatsApp prefilled URL for Sell / Valuation
   const waUrlSell = useMemo(() => {
     if (!calculation.canBuy) {
       return `https://wa.me/${SITE_INFO.whatsapp}`;
     }
+    const bodyLoc = localizeBodyCondition(selectedBody.id, lang);
     const msg = [
-      `Здравствуйте! Хочу продать iPhone в ${SITE_INFO.shopName}.`,
-      `• Модель: ${selectedModel.name} (${formatStorage(selectedStorage)})`,
-      `• Аккумулятор: ${batteryPct}%`,
-      `• Корпус: ${selectedBody.label} (${selectedBody.hint})`,
+      t.waSellGreeting(SITE_INFO.shopName),
+      `• ${t.waModel}: ${selectedModel.name} (${formatStorage(selectedStorage)})`,
+      `• ${t.waBattery}: ${batteryPct}%`,
+      `• ${t.waBody}: ${bodyLoc.label} (${bodyLoc.hint})`,
       calculation.activeExtrasLabels.length > 0
-        ? `• Особенности: ${calculation.activeExtrasLabels.join(', ')}`
+        ? `• ${t.waExtras}: ${calculation.activeExtrasLabels.join(', ')}`
         : null,
-      `• Оценка на сайте: ${formatPrice(calculation.price)}`,
-      `\nКогда можно приехать на проверку в магазин?`,
+      `• ${t.waSiteValuation}: ${formatPrice(calculation.price)}`,
+      t.waVisitAsk,
     ]
       .filter(Boolean)
       .join('\n');
     return `https://wa.me/${SITE_INFO.whatsapp}?text=${encodeURIComponent(msg)}`;
-  }, [calculation, selectedModel, selectedStorage, batteryPct, selectedBody]);
+  }, [calculation, selectedModel, selectedStorage, batteryPct, selectedBody, lang, t]);
 
   const copyValuationSummary = useCallback(() => {
-    const summary = `${selectedModel.name} ${formatStorage(selectedStorage)}, АКБ ${batteryPct}%, ${selectedBody.label}. Оценка Bylance: ${formatPrice(calculation.price)}`;
+    const bodyLoc = localizeBodyCondition(selectedBody.id, lang);
+    const summary = t.copyValuationSummaryText(
+      selectedModel.name,
+      formatStorage(selectedStorage),
+      batteryPct,
+      bodyLoc.label,
+      formatPrice(calculation.price)
+    );
     navigator.clipboard.writeText(summary);
     setCopiedValuation(true);
     setTimeout(() => setCopiedValuation(false), 2000);
-  }, [selectedModel, selectedStorage, batteryPct, selectedBody, calculation.price]);
+  }, [selectedModel, selectedStorage, batteryPct, selectedBody, calculation.price, lang, t]);
 
   // Active Page Navigation ('catalog' or 'valuation')
   const [activePage, setActivePage] = useState<'catalog' | 'valuation'>(() => {
@@ -558,51 +603,51 @@ export default function App() {
     methodId: PaymentMethodId,
     chosenColor?: ProductColor
   ) => {
-    const methodObj = PAYMENT_METHODS.find((m) => m.id === methodId) || PAYMENT_METHODS[2];
+    const methodLoc = localizePaymentMethod(methodId, lang);
     const variantPrices = getVariantPrices(variant, chosenColor?.id);
     const priceVal = variantPrices[methodId];
     const priceStr = priceVal !== null && priceVal !== undefined
       ? formatPrice(priceVal)
-      : 'Цена по запросу';
+      : t.onRequest;
 
     const textLines = [
-      `Здравствуйте! Хочу оформить заказ в ${SITE_INFO.shopName}:`,
+      t.waOneClickGreeting(SITE_INFO.shopName),
       ``,
-      `• Модель: ${variant.fullName}`,
+      `• ${t.waModel}: ${localizeProductName(variant.fullName, lang)}`,
     ];
 
     if (chosenColor) {
-      textLines.push(`• Цвет: ${chosenColor.name}`);
+      textLines.push(`• ${t.waColor}: ${localizeColorName(chosenColor.name, lang)}`);
     }
 
     textLines.push(
-      `• Способ оплаты: ${methodObj.name}`,
-      `• Цена: ${priceStr}`,
+      `• ${t.waPaymentMethod}: ${methodLoc.name}`,
+      `• ${t.waPrice}: ${priceStr}`,
       ``,
-      `Подскажите, есть ли в наличии и как оформить доставку/самовывоз?`
+      t.waAvailabilityAsk
     );
 
     const url = `https://wa.me/${SITE_INFO.whatsapp}?text=${encodeURIComponent(textLines.join('\n'))}`;
     window.open(url, '_blank');
-  }, []);
+  }, [lang, t]);
 
   // 5. WHATSAPP ORDER GENERATOR FOR CART
   const generateWhatsAppMessage = useCallback(() => {
-    const lines: string[] = ['Здравствуйте! Хочу оформить заказ.', '', 'Мои товары:', ''];
+    const lines: string[] = [t.waCartGreeting, '', t.waMyItems, ''];
 
     cart.forEach((item, index) => {
       const priceVal = item.prices[item.paymentMethod];
       const priceStr = priceVal !== null && priceVal !== undefined
         ? formatPrice(priceVal)
-        : 'Уточняется у менеджера';
+        : t.waManagerClarify;
 
-      const methodObj = PAYMENT_METHODS.find((m) => m.id === item.paymentMethod);
-      const methodName = methodObj ? methodObj.name : item.paymentMethod;
+      const methodLoc = localizePaymentMethod(item.paymentMethod, lang);
+      const methodName = methodLoc.name;
 
-      lines.push(`${index + 1}. ${item.fullName}`);
-      lines.push(`Количество: ${item.quantity}`);
-      lines.push(`Способ оплаты: ${methodName}`);
-      lines.push(`Цена: ${priceStr}`);
+      lines.push(`${index + 1}. ${localizeProductName(item.fullName, lang)}`);
+      lines.push(`${t.waQuantity}: ${item.quantity}`);
+      lines.push(`${t.waPaymentMethod}: ${methodName}`);
+      lines.push(`${t.waPrice}: ${priceStr}`);
       lines.push('');
     });
 
@@ -610,19 +655,19 @@ export default function App() {
       ? formatPrice(cartTotals.totalPrice)
       : '0 ₸';
 
-    const totalSuffix = cartTotals.hasUnpricedItems ? ' (без учета позиций с ценой по запросу)' : '';
-    lines.push(`Сумма товаров: ${formattedTotal}${totalSuffix}`);
+    const totalSuffix = cartTotals.hasUnpricedItems ? t.waUnpricedSuffix : '';
+    lines.push(`${t.waItemsSum}: ${formattedTotal}${totalSuffix}`);
 
     if (tradeInApplied) {
-      lines.push(`• Зачет Trade-In (${tradeInApplied.modelName}): -${formatPrice(tradeInApplied.price)}`);
+      lines.push(`${t.waTradeInOffset(tradeInApplied.modelName)}: -${formatPrice(tradeInApplied.price)}`);
       const finalToPay = Math.max(0, cartTotals.totalPrice - tradeInApplied.price);
-      lines.push(`• Итого к доплате с учетом Trade-In: ${formatPrice(finalToPay)}`);
+      lines.push(`${t.waTotalWithTradeIn}: ${formatPrice(finalToPay)}`);
     } else {
-      lines.push(`Итого к оплате: ${formattedTotal}${totalSuffix}.`);
+      lines.push(`${t.waTotalPay}: ${formattedTotal}${totalSuffix}.`);
     }
 
     return lines.join('\n');
-  }, [cart, cartTotals, tradeInApplied]);
+  }, [cart, cartTotals, tradeInApplied, lang, t]);
 
   const handleCheckoutWhatsApp = useCallback(() => {
     if (cart.length === 0) return;
@@ -640,7 +685,10 @@ export default function App() {
 
   const baseUrl = import.meta.env.BASE_URL || '/';
   const cleanBase = baseUrl.replace(/\/$/, '');
-  const logoSrc = `${cleanBase}/logo.svg`;
+  const logoPath = SITE_INFO.logoPath || '/assets/aistudio/Gemini_Generated_Image_fizavafizavafiza_cfb77561.webp';
+  const logoSrc = logoPath.startsWith('http')
+    ? logoPath
+    : `${cleanBase}/${logoPath.replace(/^\//, '')}`;
   const founderImgPath = SITE_INFO.founder?.image || '/aruzhan.jpg';
   const founderSrc = founderImgPath.startsWith('http')
     ? founderImgPath
@@ -659,7 +707,7 @@ export default function App() {
             {/* Hamburger Button visible on mobile AND tablet (< 1024px) to prevent collisions */}
             <button
               onClick={() => setIsMobileMenuOpen(true)}
-              aria-label="Открыть меню"
+              aria-label={t.openMenu}
               className="lg:hidden p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
             >
               <Menu className="w-5 h-5" />
@@ -670,20 +718,22 @@ export default function App() {
               type="button"
               onClick={() => navigateTo('catalog')}
               className="flex items-center gap-2.5 focus-visible:outline-none text-left cursor-pointer active:scale-95 transition-transform"
-              aria-label="В каталог Bylance"
+              aria-label={t.toCatalogAria}
             >
-              <img
-                src={logoSrc}
-                alt={SITE_INFO.shopName}
-                className="h-8 sm:h-10 w-auto object-contain rounded-lg shadow-sm shrink-0"
-                onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-              />
+              <div className="h-9 w-24 sm:h-10 sm:w-28 rounded-xl overflow-hidden bg-[#490203] border border-[#d4af5a]/40 shadow-sm shrink-0">
+                <img
+                  src={logoSrc}
+                  alt={SITE_INFO.shopName}
+                  className="w-full h-full object-cover object-center scale-125"
+                  onError={(e) => { (e.currentTarget.parentElement as HTMLElement).style.display = 'none'; }}
+                />
+              </div>
               <div className="flex flex-col">
                 <span className="text-lg sm:text-xl font-black tracking-tight text-[#7a0f2d] dark:text-[#ffead1] transition-colors leading-tight">
                   {SITE_INFO.shopName}
                 </span>
                 <span className="text-[9px] sm:text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-[#ffead1]/70 leading-none">
-                  Электроника в Алматы
+                  {t.brandSubtitle}
                 </span>
               </div>
             </button>
@@ -706,7 +756,7 @@ export default function App() {
                 }`}
               >
                 <ShoppingCart className="w-3.5 h-3.5" />
-                <span>Каталог</span>
+                <span>{t.navCatalog}</span>
               </button>
               <button
                 type="button"
@@ -718,7 +768,7 @@ export default function App() {
                 }`}
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                <span>Trade-In</span>
+                <span>{t.navTradeIn}</span>
               </button>
             </div>
             <button
@@ -729,7 +779,7 @@ export default function App() {
               }}
               className="hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
             >
-              Об основательнице
+              {t.navFounder}
             </button>
             <button
               type="button"
@@ -739,7 +789,7 @@ export default function App() {
               }}
               className="hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
             >
-              FAQ
+              {t.navFaq}
             </button>
             <button
               type="button"
@@ -749,18 +799,47 @@ export default function App() {
               }}
               className="hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
             >
-              Контакты
+              {t.navContacts}
             </button>
           </nav>
 
           {/* Header Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Language Switcher (РУС / ҚАЗ) */}
+            <div
+              className="inline-flex p-0.5 rounded-xl bg-slate-100 dark:bg-white/10 border border-slate-200/80 dark:border-white/10"
+              role="group"
+              aria-label="Выбор языка / Тілді таңдау"
+            >
+              <button
+                type="button"
+                onClick={() => handleSelectLang('ru')}
+                className={`px-2 py-1 rounded-lg text-[10px] sm:text-xs font-black transition-all cursor-pointer ${
+                  lang === 'ru'
+                    ? 'bg-[#7a0f2d] text-[#ffead1] shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                РУС
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSelectLang('kk')}
+                className={`px-2 py-1 rounded-lg text-[10px] sm:text-xs font-black transition-all cursor-pointer ${
+                  lang === 'kk'
+                    ? 'bg-[#7a0f2d] text-[#ffead1] shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                ҚАЗ
+              </button>
+            </div>
             
             {/* Theme Toggle */}
             <button
               onClick={handleToggleTheme}
-              aria-label="Сменить тему"
-              title={isDark ? "Переключить на светлую тему" : "Переключить на тёмную тему"}
+              aria-label={t.toggleTheme}
+              title={isDark ? t.themeToLight : t.themeToDark}
               className="p-2 rounded-xl text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
             >
               {isDark ? <Sun className="w-4 h-4 text-amber-300" /> : <Moon className="w-4 h-4 text-[#7a0f2d]" />}
@@ -770,10 +849,10 @@ export default function App() {
             <button
               onClick={() => setIsCartOpen(true)}
               className="relative p-2 sm:px-3 sm:py-1.5 rounded-xl bg-[#ffead1]/40 hover:bg-[#ffead1]/70 dark:bg-white/10 dark:hover:bg-white/15 text-[#2a1a1f] dark:text-[#ffead1] transition-all flex items-center gap-2 font-semibold text-xs sm:text-sm border border-[#7a0f2d]/15 dark:border-white/10"
-              aria-label="Открыть корзину"
+              aria-label={t.openCartAria}
             >
               <ShoppingCart className="w-4 h-4 text-[#7a0f2d] dark:text-[#ffead1]" />
-              <span className="hidden sm:inline">Корзина</span>
+              <span className="hidden sm:inline">{t.cartLabel}</span>
               {cartTotals.totalCount > 0 && (
                 <span className="px-1.5 py-0.5 text-[11px] font-black rounded-full bg-[#7a0f2d] text-[#ffead1]">
                   {cartTotals.totalCount}
@@ -797,9 +876,18 @@ export default function App() {
           <div className="relative w-4/5 max-w-xs bg-white dark:bg-[#121622] text-slate-900 dark:text-white h-full shadow-2xl flex flex-col z-10 p-5 space-y-5 overflow-y-auto">
             {/* Header */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10">
-              <span className="font-black text-xl text-[#7a0f2d] dark:text-[#ffead1]">
-                {SITE_INFO.shopName}
-              </span>
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-22 rounded-lg overflow-hidden bg-[#490203] border border-[#d4af5a]/40 shadow-xs shrink-0">
+                  <img
+                    src={logoSrc}
+                    alt={SITE_INFO.shopName}
+                    className="w-full h-full object-cover object-center scale-125"
+                  />
+                </div>
+                <span className="font-black text-xl text-[#7a0f2d] dark:text-[#ffead1]">
+                  {SITE_INFO.shopName}
+                </span>
+              </div>
               <button
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white"
@@ -808,10 +896,41 @@ export default function App() {
               </button>
             </div>
 
-            {/* Quick Categories Navigation (Emojis removed as requested) */}
+            {/* Language Switcher inside mobile menu */}
+            <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200/80 dark:border-white/10">
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                {lang === 'kk' ? 'Тіл:' : 'Язык:'}
+              </span>
+              <div className="inline-flex p-0.5 rounded-lg bg-white dark:bg-[#121622] border border-slate-200 dark:border-white/10">
+                <button
+                  type="button"
+                  onClick={() => handleSelectLang('ru')}
+                  className={`px-2.5 py-1 rounded-md text-xs font-black transition-all cursor-pointer ${
+                    lang === 'ru'
+                      ? 'bg-[#7a0f2d] text-[#ffead1]'
+                      : 'text-slate-600 dark:text-slate-300'
+                  }`}
+                >
+                  РУС
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelectLang('kk')}
+                  className={`px-2.5 py-1 rounded-md text-xs font-black transition-all cursor-pointer ${
+                    lang === 'kk'
+                      ? 'bg-[#7a0f2d] text-[#ffead1]'
+                      : 'text-slate-600 dark:text-slate-300'
+                  }`}
+                >
+                  ҚАЗ
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Categories Navigation */}
             <div className="space-y-1">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
-                Категории каталога:
+                {t.catalogCategories}
               </span>
               <button
                 onClick={() => {
@@ -829,7 +948,7 @@ export default function App() {
                     : 'hover:bg-slate-100 dark:hover:bg-white/5'
                 }`}
               >
-                <span>Все товары</span>
+                <span>{t.allProducts}</span>
                 <span className="text-[11px] opacity-70">({PRODUCT_MODELS.length})</span>
               </button>
 
@@ -849,7 +968,7 @@ export default function App() {
                     : 'hover:bg-slate-100 dark:hover:bg-white/5'
                 }`}
               >
-                <span>Техника Apple</span>
+                <span>{t.appleTech}</span>
                 <span className="text-[11px] opacity-70">
                   ({PRODUCT_MODELS.filter((p) => p.category === 'apple').length})
                 </span>
@@ -871,7 +990,7 @@ export default function App() {
                     : 'hover:bg-slate-100 dark:hover:bg-white/5'
                 }`}
               >
-                <span>Устройства Dyson</span>
+                <span>{t.dysonDevices}</span>
                 <span className="text-[11px] opacity-70">
                   ({PRODUCT_MODELS.filter((p) => p.category === 'dyson').length})
                 </span>
@@ -893,7 +1012,7 @@ export default function App() {
                     : 'hover:bg-slate-100 dark:hover:bg-white/5'
                 }`}
               >
-                <span>Фото и гаджеты</span>
+                <span>{t.photoAndGadgets}</span>
                 <span className="text-[11px] opacity-70">
                   ({PRODUCT_MODELS.filter((p) => p.category === 'other').length})
                 </span>
@@ -903,7 +1022,7 @@ export default function App() {
             {/* Pages & Sections in Store */}
             <div className="space-y-1.5 pt-3 border-t border-slate-200 dark:border-white/10">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
-                Страницы:
+                {lang === 'kk' ? 'Беттер:' : 'Страницы:'}
               </span>
               <button
                 type="button"
@@ -917,8 +1036,8 @@ export default function App() {
                     : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
                 }`}
               >
-                <span>🛍️ Каталог новых устройств</span>
-                <span className="text-[10px] opacity-80">Магазин</span>
+                <span>{lang === 'kk' ? 'Жаңа құрылғылар каталогы' : 'Каталог новых устройств'}</span>
+                <span className="text-[10px] opacity-80">{lang === 'kk' ? 'Дүкен' : 'Магазин'}</span>
               </button>
               <button
                 type="button"
@@ -932,14 +1051,14 @@ export default function App() {
                     : 'text-amber-700 dark:text-amber-400 hover:bg-amber-500/10'
                 }`}
               >
-                <span>🔄 Оценка и Trade-In iPhone</span>
+                <span>{lang === 'kk' ? 'iPhone бағалау және Trade-In' : 'Оценка и Trade-In iPhone'}</span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 font-bold">
                   Trade-In
                 </span>
               </button>
 
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block pt-2 mb-1">
-                Разделы:
+                {t.sectionsLabel}
               </span>
               <button
                 type="button"
@@ -950,7 +1069,7 @@ export default function App() {
                 }}
                 className="w-full text-left py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 cursor-pointer"
               >
-                Как работает выкуп (3 шага)
+                {t.howBuybackWorks}
               </button>
               <button
                 type="button"
@@ -961,8 +1080,8 @@ export default function App() {
                 }}
                 className="w-full text-left py-1.5 px-3 rounded-lg text-xs font-semibold text-rose-700 dark:text-rose-400 hover:bg-slate-100 dark:hover:bg-white/5 flex items-center justify-between cursor-pointer"
               >
-                <span>Аружан Жеткерген</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-900/50 text-rose-800 dark:text-rose-300 font-bold">Основательница</span>
+                <span>{t.founderName}</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-900/50 text-rose-800 dark:text-rose-300 font-bold">{t.founderBadge}</span>
               </button>
               <button
                 type="button"
@@ -972,7 +1091,7 @@ export default function App() {
                 }}
                 className="w-full text-left py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 cursor-pointer"
               >
-                Частые вопросы (FAQ)
+                {t.faqFull}
               </button>
               <button
                 type="button"
@@ -982,17 +1101,17 @@ export default function App() {
                 }}
                 className="w-full text-left py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 cursor-pointer"
               >
-                Контакты в Алматы
+                {t.contactsAlmaty}
               </button>
             </div>
 
             {/* Telegram Б/У Callout */}
             <div className="p-3.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 space-y-1.5 text-xs">
               <span className="font-bold text-[#229ED9] block">
-                Каталог Б/У техники в Telegram
+                {t.tgUsedTitle}
               </span>
               <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-snug">
-                В нашем Telegram публикуются исключительно проверенные Б/У устройства и Trade-In с фото и АКБ.
+                {t.tgUsedDesc}
               </p>
               <a
                 href={`https://t.me/${SITE_INFO.telegram}`}
@@ -1000,7 +1119,7 @@ export default function App() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 font-bold text-[#229ED9] hover:underline pt-1 text-[11px]"
               >
-                <span>Перейти в Telegram-канал ↗</span>
+                <span>{t.tgOpenChannel}</span>
               </a>
             </div>
 
@@ -1013,7 +1132,7 @@ export default function App() {
                 className="w-full py-2.5 px-3 rounded-xl bg-[#25D366] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm"
               >
                 <MessageCircle className="w-4 h-4 fill-current" />
-                <span>Написать в WhatsApp</span>
+                <span>{t.writeWhatsApp}</span>
               </a>
             </div>
           </div>
@@ -1037,10 +1156,10 @@ export default function App() {
             <div>
               <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold mb-1.5 border border-emerald-200 dark:border-emerald-800/60 shadow-xs">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>100% Оригинальная техника с официальной гарантией 1 год</span>
+                <span>{t.catalogTrustBadge}</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                Каталог устройств в наличии
+                {t.catalogTitle}
               </h1>
             </div>
 
@@ -1051,13 +1170,13 @@ export default function App() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Поиск по названию модели..."
+                placeholder={t.searchPlaceholder}
                 className="w-full pl-9 pr-8 py-2.5 rounded-xl text-xs sm:text-sm bg-white dark:bg-[#121622] border border-slate-200/80 dark:border-white/10 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#7a0f2d]/30 dark:focus:ring-white/20 shadow-xs"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  aria-label="Очистить поиск"
+                  aria-label={t.clearSearch}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -1075,10 +1194,10 @@ export default function App() {
                 </div>
                 <div>
                   <div className="text-xs sm:text-sm font-black">
-                    Учтен ваш Trade-In: {tradeInApplied.modelName}
+                    {t.tradeInAppliedTitle} {tradeInApplied.modelName}
                   </div>
                   <div className="text-[11px] text-emerald-800 dark:text-emerald-300/80">
-                    Скидка <span className="font-bold font-mono text-xs">{formatPrice(tradeInApplied.price)}</span> на покупку любого нового устройства!
+                    {t.tradeInDiscountPrefix} <span className="font-bold font-mono text-xs">{formatPrice(tradeInApplied.price)}</span> {t.tradeInDiscountSuffix}
                   </div>
                 </div>
               </div>
@@ -1088,14 +1207,14 @@ export default function App() {
                   onClick={() => navigateTo('valuation')}
                   className="px-3 py-1.5 rounded-xl bg-white/70 dark:bg-white/10 hover:bg-white text-xs font-bold transition-all border border-emerald-500/30 cursor-pointer"
                 >
-                  Изменить оценку
+                  {t.changeValuation}
                 </button>
                 <button
                   type="button"
                   onClick={() => setTradeInApplied(null)}
                   className="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 text-xs font-bold transition-all cursor-pointer"
                 >
-                  Сбросить
+                  {t.resetBtn}
                 </button>
               </div>
             </div>
@@ -1104,10 +1223,11 @@ export default function App() {
           {/* Quick Global Payment Mode Selector Pills (Switches all catalog prices) */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 shrink-0 mr-1">
-              Цены в каталоге:
+              {t.catalogPricesLabel}
             </span>
             {PAYMENT_METHODS.map((m) => {
               const isSelected = globalPayment === m.id;
+              const locM = localizePaymentMethod(m.id, lang);
               return (
                 <button
                   key={m.id}
@@ -1122,10 +1242,10 @@ export default function App() {
                   }`}
                 >
                   <PaymentMethodIcon method={m.id} className="w-3.5 h-3.5" />
-                  <span>{m.name}</span>
+                  <span>{locM.name}</span>
                   {m.id === 'cash' && (
                     <span className="text-[10px] px-1 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-extrabold ml-0.5">
-                      Скидка
+                      {t.discountBadge}
                     </span>
                   )}
                 </button>
@@ -1143,12 +1263,13 @@ export default function App() {
                   : 'bg-white dark:bg-[#121622] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/10 hover:border-slate-300'
               }`}
             >
-              Все товары ({PRODUCT_MODELS.length})
+              {t.allProducts} ({PRODUCT_MODELS.length})
             </button>
 
             {CATEGORIES.map((cat) => {
               const count = PRODUCT_MODELS.filter((p) => p.category === cat.id).length;
               const isSelected = selectedCategory === cat.id;
+              const locCat = localizeCategory(cat.id, lang);
               return (
                 <button
                   key={cat.id}
@@ -1159,7 +1280,7 @@ export default function App() {
                       : 'bg-white dark:bg-[#121622] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/10 hover:border-slate-300'
                   }`}
                 >
-                  {cat.name} ({count})
+                  {locCat.name} ({count})
                 </button>
               );
             })}
@@ -1170,7 +1291,7 @@ export default function App() {
             <div className="flex items-center gap-2 pt-1 overflow-x-auto no-scrollbar pb-1">
               <span className="text-xs font-bold text-slate-500 dark:text-slate-400 shrink-0 flex items-center gap-1.5 mr-0.5">
                 <Filter className="w-3.5 h-3.5 text-[#7a0f2d] dark:text-[#ffead1]" />
-                <span>Подкатегория:</span>
+                <span>{t.subcategoryLabel}</span>
               </span>
               <button
                 onClick={() => setSelectedSubcategory('all')}
@@ -1180,7 +1301,7 @@ export default function App() {
                     : 'bg-white dark:bg-[#121622] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/10 hover:border-slate-300'
                 }`}
               >
-                Все
+                {t.allLabel}
               </button>
 
               {availableSubcategories.map((subcat) => (
@@ -1193,7 +1314,7 @@ export default function App() {
                       : 'bg-white dark:bg-[#121622] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/10 hover:border-slate-300'
                   }`}
                 >
-                  {subcat}
+                  {localizeSubcategory(subcat, lang)}
                 </button>
               ))}
             </div>
@@ -1205,13 +1326,13 @@ export default function App() {
           {filteredModels.length === 0 ? (
             <div className="p-12 text-center bg-white dark:bg-[#121622] rounded-2xl border border-slate-200/80 dark:border-white/10">
               <p className="text-base font-bold text-slate-700 dark:text-slate-300 mb-2">
-                Ничего не найдено по запросу «{searchQuery}»
+                {t.nothingFound} «{searchQuery}»
               </p>
               <button
                 onClick={() => { setSearchQuery(''); setSelectedCategory('all'); setSelectedSubcategory('all'); }}
                 className="text-xs font-bold text-[#7a0f2d] dark:text-[#ffead1] hover:underline"
               >
-                Сбросить фильтры
+                {t.resetFilters}
               </button>
             </div>
           ) : (
@@ -1252,8 +1373,10 @@ export default function App() {
                 if (activeStorage) specParts.push(activeStorage);
                 if (activeSim) specParts.push(activeSim === 'ESIM' ? 'eSIM' : 'SIM');
                 if (activeSize) specParts.push(activeSize);
-                if (activeColor) specParts.push(activeColor.name.split(' (')[0]);
-                const specSubtitle = specParts.length > 0 ? specParts.join(' · ') : model.subcategory;
+                if (activeColor) specParts.push(localizeColorName(activeColor.name, lang).split(' (')[0]);
+                const specSubtitle = specParts.length > 0 ? specParts.join(' · ') : localizeSubcategory(model.subcategory, lang);
+                const localizedModelName = localizeProductName(model.name, lang);
+                const localizedColorLabel = activeColor ? localizeColorName(activeColor.name, lang) : undefined;
 
                 return (
                   <div
@@ -1266,14 +1389,14 @@ export default function App() {
                         <div className="w-full h-full flex items-center justify-center bg-white rounded-2xl p-1">
                           <ProductImage
                             src={displayImage}
-                            alt={model.name}
+                            alt={localizedModelName}
                             fallbackSrc={model.image}
                             className="max-h-36 sm:max-h-42 w-auto max-w-[85%] object-contain rounded-2xl group-hover:scale-105 transition-transform duration-300"
                           />
                         </div>
-                        {activeColor && (
+                        {localizedColorLabel && (
                           <span className="absolute bottom-2.5 right-2.5 text-[10px] font-bold tracking-wide px-2.5 py-0.5 rounded-full bg-slate-900/85 backdrop-blur-xs text-white border border-white/20 shadow-2xs pointer-events-none">
-                            {activeColor.name}
+                            {localizedColorLabel}
                           </span>
                         )}
                       </div>
@@ -1285,14 +1408,14 @@ export default function App() {
                         <div className="space-y-1 sm:space-y-1.5">
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-[10px] sm:text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-white/5">
-                              {model.subcategory}
+                              {localizeSubcategory(model.subcategory, lang)}
                             </span>
                             <span className="text-[11px] sm:text-xs text-slate-400">
-                              {model.warranty}
+                              {t.warranty1Year}
                             </span>
                           </div>
                           <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white leading-snug pt-0.5">
-                            {model.name}
+                            {localizedModelName}
                           </h3>
                         </div>
 
@@ -1301,21 +1424,22 @@ export default function App() {
                           <div className="space-y-2">
                             <div className="flex items-center justify-between text-xs">
                               <span className="font-extrabold uppercase tracking-wider text-[#7a0f2d] dark:text-[#ffead1]">
-                                Цвет:
+                                {t.colorLabel}
                               </span>
                               <span className="font-bold text-[#2a1a1f] dark:text-[#ffead1] bg-[#ffead1]/60 dark:bg-[#7a0f2d]/40 px-2.5 py-0.5 rounded-lg text-xs truncate ml-2 border border-[#7a0f2d]/20 dark:border-white/10 shadow-2xs">
-                                {activeColor?.name}
+                                {localizedColorLabel}
                               </span>
                             </div>
                             <div className="flex items-center gap-2 sm:gap-2.5 overflow-x-auto no-scrollbar py-1">
                               {model.colorOptions.map((col) => {
                                 const isColSel = activeColor?.id === col.id;
+                                const colNameLoc = localizeColorName(col.name, lang);
                                 return (
                                   <button
                                     key={col.id}
                                     type="button"
                                     onClick={() => updateCardSelection(model.id, { colorId: col.id })}
-                                    title={col.name}
+                                    title={colNameLoc}
                                     className={`group/color relative rounded-xl border-2 transition-all flex items-center justify-center shrink-0 active:scale-95 cursor-pointer overflow-hidden ${
                                       isColSel
                                         ? 'border-[#7a0f2d] dark:border-[#ffead1] ring-2 ring-[#b4401f]/40 dark:ring-[#ffead1]/30 scale-105 shadow-md'
@@ -1325,7 +1449,7 @@ export default function App() {
                                     <div className="w-11 h-11 sm:w-12 sm:h-12 bg-white flex items-center justify-center relative rounded-xl p-1 overflow-hidden shadow-2xs">
                                       <img
                                         src={col.image}
-                                        alt={col.name}
+                                        alt={colNameLoc}
                                         loading="lazy"
                                         className="w-full h-full object-contain rounded-lg transition-transform duration-300 group-hover/color:scale-110"
                                         onError={(e) => {
@@ -1347,7 +1471,7 @@ export default function App() {
                               <div className="text-[10px] sm:text-[11px] font-bold text-[#7a0f2d] dark:text-[#ffead1] bg-[#ffead1]/70 dark:bg-[#7a0f2d]/30 px-2.5 py-1 rounded-xl border border-[#7a0f2d]/25 flex items-center justify-between">
                                 <span className="flex items-center gap-1.5 truncate">
                                   <span className="w-1.5 h-1.5 rounded-full bg-[#7a0f2d] dark:bg-[#ffead1] shrink-0" />
-                                  <span className="truncate">Спеццена для цвета {activeColor.name.split(' (')[0]}</span>
+                                  <span className="truncate">{t.specialColorPrice} {localizedColorLabel?.split(' (')[0]}</span>
                                 </span>
                                 <span className="font-mono font-black shrink-0 ml-1.5">{formatPrice(currentPrice || 0)}</span>
                               </div>
@@ -1359,7 +1483,7 @@ export default function App() {
                         {model.simOptions && model.simOptions.length > 0 && (
                           <div className="space-y-1.5">
                             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                              Тип SIM-карты:
+                              {t.simTypeLabel}
                             </span>
                             <div className="grid grid-cols-2 gap-1.5">
                               {model.simOptions.map((sim) => {
@@ -1375,7 +1499,7 @@ export default function App() {
                                         : 'bg-slate-50 dark:bg-[#181d2a] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/10 hover:border-slate-300'
                                     }`}
                                   >
-                                    {sim === 'ESIM' ? 'eSIM' : 'Физическая SIM'}
+                                    {sim === 'ESIM' ? t.simEsim : t.simPhysical}
                                   </button>
                                 );
                               })}
@@ -1387,7 +1511,7 @@ export default function App() {
                         {model.storageOptions && model.storageOptions.length > 0 && (
                           <div className="space-y-1.5">
                             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                              Объём памяти:
+                              {t.storageLabel}
                             </span>
                             <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
                               {model.storageOptions.map((storage) => {
@@ -1415,7 +1539,7 @@ export default function App() {
                         {model.sizeOptions && model.sizeOptions.length > 0 && (
                           <div className="space-y-1.5">
                             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                              Размер корпуса:
+                              {t.sizeLabel}
                             </span>
                             <div className="grid grid-cols-2 gap-1.5">
                               {model.sizeOptions.map((sz) => {
@@ -1443,14 +1567,14 @@ export default function App() {
                     </div>
 
                     {/* ================================================================ */}
-                    {/* AUTHENTIC MULTI-COLOR PRICING TAG (КАК НА ФОТО ПОЛЬЗОВАТЕЛЯ)      */}
+                    {/* AUTHENTIC MULTI-COLOR PRICING TAG                                */}
                     {/* ================================================================ */}
                     <div className="p-2.5 sm:p-3.5 border-t border-slate-100 dark:border-white/10 space-y-1.5 sm:space-y-2 bg-slate-50/60 dark:bg-[#0e121c]/90 mt-auto">
                       
                       {/* 1. Header Box: Model Title + Spec Summary (Wine Crimson #7a0f2d) */}
                       <div className="rounded-2xl bg-[#7a0f2d] text-white p-2.5 sm:p-3 shadow-xs">
                         <div className="font-extrabold text-sm sm:text-base leading-tight text-white tracking-tight">
-                          {model.name}
+                          {localizedModelName}
                         </div>
                         <div className="text-[11px] sm:text-xs text-[#ffead1] font-medium leading-tight mt-0.5 truncate">
                           {specSubtitle}
@@ -1472,25 +1596,25 @@ export default function App() {
                             Kaspi
                           </span>
                           <span className="text-[10px] sm:text-[11px] text-[#8a7267] font-semibold block mt-0.5">
-                            рассрочка
+                            {t.installmentWord}
                           </span>
                         </div>
 
                         <div className="text-center sm:text-left flex-1 px-1 min-w-0">
                           <span className="font-black font-mono text-base sm:text-base md:text-lg xl:text-xl text-[#2a1a1f] whitespace-nowrap block truncate">
-                            {kaspiPrice !== null ? formatPrice(kaspiPrice) : 'По запросу'}
+                            {kaspiPrice !== null ? formatPrice(kaspiPrice) : t.onRequest}
                           </span>
                         </div>
 
                         <div className="shrink-0 text-right leading-tight space-y-0.5">
                           <div className="flex items-center justify-end gap-1 sm:gap-1.5 text-right">
-                            <span className="text-[10px] sm:text-xs text-[#8a7267] font-semibold">12 мес</span>
+                            <span className="text-[10px] sm:text-xs text-[#8a7267] font-semibold">{t.months12}</span>
                             <span className="font-black text-xs sm:text-xs xl:text-sm text-[#7a0f2d] font-mono whitespace-nowrap">
                               {kaspi12 !== null ? formatPrice(kaspi12).replace(' ₸', '') : '—'}
                             </span>
                           </div>
                           <div className="flex items-center justify-end gap-1 sm:gap-1.5 text-right">
-                            <span className="text-[10px] sm:text-xs text-[#8a7267] font-semibold">24 мес</span>
+                            <span className="text-[10px] sm:text-xs text-[#8a7267] font-semibold">{t.months24}</span>
                             <span className="font-black text-xs sm:text-xs xl:text-sm text-[#7a0f2d] font-mono whitespace-nowrap">
                               {kaspi24 !== null ? formatPrice(kaspi24).replace(' ₸', '') : '—'}
                             </span>
@@ -1513,25 +1637,25 @@ export default function App() {
                             Halyk
                           </span>
                           <span className="text-[10px] sm:text-[11px] text-[#8a7267] font-semibold block mt-0.5">
-                            рассрочка
+                            {t.installmentWord}
                           </span>
                         </div>
 
                         <div className="text-center sm:text-left flex-1 px-1 min-w-0">
                           <span className="font-black font-mono text-base sm:text-base md:text-lg xl:text-xl text-[#2a1a1f] whitespace-nowrap block truncate">
-                            {halykPrice !== null ? formatPrice(halykPrice) : 'По запросу'}
+                            {halykPrice !== null ? formatPrice(halykPrice) : t.onRequest}
                           </span>
                         </div>
 
                         <div className="shrink-0 text-right leading-tight space-y-0.5">
                           <div className="flex items-center justify-end gap-1 sm:gap-1.5 text-right">
-                            <span className="text-[10px] sm:text-xs text-[#8a7267] font-semibold">12 мес</span>
+                            <span className="text-[10px] sm:text-xs text-[#8a7267] font-semibold">{t.months12}</span>
                             <span className="font-black text-xs sm:text-xs xl:text-sm text-[#7a0f2d] font-mono whitespace-nowrap">
                               {halyk12 !== null ? formatPrice(halyk12).replace(' ₸', '') : '—'}
                             </span>
                           </div>
                           <div className="flex items-center justify-end gap-1 sm:gap-1.5 text-right">
-                            <span className="text-[10px] sm:text-xs text-[#8a7267] font-semibold">24 мес</span>
+                            <span className="text-[10px] sm:text-xs text-[#8a7267] font-semibold">{t.months24}</span>
                             <span className="font-black text-xs sm:text-xs xl:text-sm text-[#7a0f2d] font-mono whitespace-nowrap">
                               {halyk24 !== null ? formatPrice(halyk24).replace(' ₸', '') : '—'}
                             </span>
@@ -1553,15 +1677,15 @@ export default function App() {
                         >
                           <div>
                             <span className="font-black text-xs uppercase tracking-wide block leading-none">
-                              АКЦИЯ
+                              {t.promoTitle}
                             </span>
                             <span className="text-[10px] text-[#ffead1]/90 font-medium block mt-1 leading-tight truncate">
-                              при онлайн-оплате
+                              {t.promoSubtitle}
                             </span>
                           </div>
                           <div className="mt-2.5">
                             <span className="font-black font-mono text-sm sm:text-base md:text-lg text-white block whitespace-nowrap leading-none truncate">
-                              {promoPrice !== null ? formatPrice(promoPrice) : 'По запросу'}
+                              {promoPrice !== null ? formatPrice(promoPrice) : t.onRequest}
                             </span>
                           </div>
                         </button>
@@ -1578,15 +1702,15 @@ export default function App() {
                         >
                           <div>
                             <span className="font-black text-xs uppercase tracking-wide block leading-none">
-                              НАЛИЧНЫМИ
+                              {t.cashTitle}
                             </span>
                             <span className="text-[10px] text-[#ffead1]/80 font-medium block mt-1 leading-tight truncate">
-                              бумажные деньги
+                              {t.cashSubtitle}
                             </span>
                           </div>
                           <div className="mt-2.5">
                             <span className="font-black font-mono text-sm sm:text-base md:text-lg text-white block whitespace-nowrap leading-none truncate">
-                              {cashPrice !== null ? formatPrice(cashPrice) : 'По запросу'}
+                              {cashPrice !== null ? formatPrice(cashPrice) : t.onRequest}
                             </span>
                           </div>
                         </button>
@@ -1601,7 +1725,7 @@ export default function App() {
                           className="w-full py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#25D366] hover:bg-[#20ba59] transition-all shadow-sm flex items-center justify-center gap-2 active:scale-[0.99] cursor-pointer"
                         >
                           <Zap className="w-4 h-4 fill-current" />
-                          <span>Заказать сразу в WhatsApp</span>
+                          <span>{t.orderNowWa}</span>
                         </button>
 
                         {/* Button 2: Add to multi-product Cart */}
@@ -1613,8 +1737,8 @@ export default function App() {
                           <ShoppingCart className="w-4 h-4 text-[#7a0f2d] dark:text-[#ffead1]" />
                           <span>
                             {cartQty > 0
-                              ? `В корзине (${cartQty} шт.) +`
-                              : 'В корзину'}
+                              ? t.inCartQty(cartQty)
+                              : t.addToCart}
                           </span>
                         </button>
 
@@ -1637,7 +1761,7 @@ export default function App() {
                                 className="w-full py-1.5 px-2 rounded-xl text-[11px] font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 transition-colors flex items-center justify-center gap-1 cursor-pointer"
                               >
                                 <RefreshCw className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-                                <span>Сдать старый iPhone по Trade-In</span>
+                                <span>{t.tradeInCardBtn}</span>
                               </button>
                             )}
                           </div>
@@ -1660,13 +1784,13 @@ export default function App() {
             </div>
             <div>
               <div className="text-[11px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                Trade-In и Выкуп iPhone в Алматы
+                {t.tradeInBannerEyebrow}
               </div>
               <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white mt-0.5">
-                Хотите сдать свой старый iPhone или обменять на новый?
+                {t.tradeInBannerTitle}
               </h3>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-1 max-w-xl">
-                Узнайте точную стоимость вашего устройства в нашем онлайн-калькуляторе на отдельной странице оценки. Выплата сразу деньгами или скидка на новый товар!
+                {t.tradeInBannerDesc}
               </p>
             </div>
           </div>
@@ -1675,7 +1799,7 @@ export default function App() {
             onClick={() => navigateTo('valuation')}
             className="shrink-0 px-6 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 dark:bg-amber-400 dark:hover:bg-amber-300 text-slate-950 font-extrabold text-sm shadow-md transition-all active:scale-95 flex items-center gap-2 cursor-pointer whitespace-nowrap"
           >
-            <span>Перейти к оценке iPhone</span>
+            <span>{t.tradeInBannerBtn}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>
@@ -1730,7 +1854,7 @@ export default function App() {
                         {SITE_INFO.founder?.name || 'Аружан Жеткерген'}
                       </span>
                       <span className="text-[9px] text-[#ffead1] font-extrabold uppercase tracking-wider block mt-0.5">
-                        Основательница Bylance
+                        {t.founderRoleBadge}
                       </span>
                     </div>
                   </div>
@@ -1743,30 +1867,30 @@ export default function App() {
             <div className="space-y-3.5 flex-1 min-w-0 text-center sm:text-left">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#ffead1] dark:bg-[#7a0f2d]/40 text-[#7a0f2d] dark:text-[#ffead1] text-xs font-bold border border-[#7a0f2d]/20 dark:border-[#ffead1]/20">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Основательница магазина Bylance</span>
+                <span>{t.founderStoryBadge}</span>
               </div>
 
               <div>
                 <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                  Аружан Жеткерген
+                  {t.founderName}
                 </h2>
                 <p className="text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
-                  Казахстанский блогер и предпринимательница (Алматы & Астана)
+                  {t.founderSubtitle}
                 </p>
               </div>
 
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed max-w-2xl">
-                Основательница магазина <strong className="text-slate-900 dark:text-white font-bold">@bylance_kz</strong>, который уже более трех лет специализируется на продаже оригинальной техники брендов Apple и Dyson. В социальных сетях Аружан делится честными обзорами гаджетов, бэкстейджами ведения бизнеса, лайфстайлом и путешествиями.
+                {t.founderBioStart} <strong className="text-slate-900 dark:text-white font-bold">@bylance_kz</strong>{t.founderBioRest}
               </p>
 
-              {/* Stats badges (100% оригинал Apple & Dyson REMOVED as requested) */}
+              {/* Stats badges */}
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
                 <div className="px-3.5 py-1.5 rounded-xl bg-slate-50 dark:bg-[#181d2a] border border-slate-200/80 dark:border-white/10 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  <span>Более 3 лет в бизнесе</span>
+                  <span>{t.founderStatYears}</span>
                 </div>
                 <div className="px-3.5 py-1.5 rounded-xl bg-slate-50 dark:bg-[#181d2a] border border-slate-200/80 dark:border-white/10 text-xs font-bold text-slate-800 dark:text-slate-200">
-                  360 000+ подписчиков
+                  {t.founderStatFollowers}
                 </div>
               </div>
             </div>
@@ -1788,7 +1912,7 @@ export default function App() {
                       TikTok @_zaag_ ↗
                     </span>
                     <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                      280 000+ подписчиков
+                      {t.subscribersText('280 000+')}
                     </span>
                   </div>
                 </div>
@@ -1810,7 +1934,7 @@ export default function App() {
                       Instagram @zaagaru ↗
                     </span>
                     <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                      80 000+ подписчиков
+                      {t.subscribersText('80 000+')}
                     </span>
                   </div>
                 </div>
@@ -1824,15 +1948,19 @@ export default function App() {
                 className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-[#181d2a] hover:bg-slate-100 dark:hover:bg-[#1e2536] border border-slate-200 dark:border-white/10 transition-all group"
               >
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-[#7a0f2d] text-[#ffead1] flex items-center justify-center font-black text-xs">
-                    BY
+                  <div className="w-12 h-8 rounded-lg overflow-hidden bg-[#490203] border border-[#d4af5a]/40 shrink-0">
+                    <img
+                      src={logoSrc}
+                      alt={SITE_INFO.shopName}
+                      className="w-full h-full object-cover object-center scale-125"
+                    />
                   </div>
                   <div className="text-left">
                     <span className="text-xs font-bold text-slate-900 dark:text-white block group-hover:text-[#b4401f] transition-colors">
-                      Магазин @bylance_kz ↗
+                      {t.shopAccountTitle}
                     </span>
                     <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                      Оригинал Apple & Dyson
+                      {t.shopAccountSubtitle}
                     </span>
                   </div>
                 </div>
@@ -1850,14 +1978,14 @@ export default function App() {
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
-                Прямая связь и каталог Б/У техники
+                {t.directContactTitle}
               </h2>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-[#229ED9] dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 whitespace-nowrap">
-                Telegram: только Б/У
+                {t.tgOnlyUsedBadge}
               </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed max-w-2xl">
-              Новая техника в WhatsApp с моментальной консультацией, а свежие поступления проверенной Б/У техники — в Telegram.
+              {t.directContactDesc}
             </p>
           </div>
 
@@ -1879,7 +2007,7 @@ export default function App() {
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#229ED9] hover:bg-[#1e8ec3] transition-all shadow-sm"
             >
               <Send className="w-4 h-4" />
-              <span>Каталог Б/У ↗</span>
+              <span>{t.usedCatalogBtn}</span>
             </a>
 
             <a
@@ -1889,7 +2017,7 @@ export default function App() {
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-[#181d2a] dark:hover:bg-[#202738] transition-all border border-slate-200 dark:border-white/10"
             >
               <MapPin className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span>2ГИС Алматы</span>
+              <span>{t.gisAlmaty}</span>
             </a>
           </div>
         </section>
@@ -1900,18 +2028,18 @@ export default function App() {
         <section id="faq" className="space-y-4 scroll-mt-20">
           <div className="text-center max-w-xl mx-auto">
             <span className="text-xs font-bold text-[#7a0f2d] dark:text-[#ffead1] uppercase tracking-wider">
-              Помощь покупателю
+              {t.faqEyebrow}
             </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-[#2a1a1f] dark:text-[#ffead1] mt-1">
-              Часто задаваемые вопросы (FAQ)
+              {t.faqTitle}
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-[#ffead1]/70 mt-1">
-              Ответы на популярные вопросы о рассрочке, гарантии, способах оплаты и получении заказов
+              {t.faqSubtitle}
             </p>
           </div>
 
           <div className="max-w-3xl mx-auto space-y-3 pt-2">
-            {FAQ_LIST.map((faq) => {
+            {getFaqList(lang).map((faq) => {
               const isOpen = openFaqId === faq.id;
               return (
                 <div
@@ -1945,17 +2073,17 @@ export default function App() {
                             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs transition-all active:scale-95 cursor-pointer"
                           >
                             <RefreshCw className="w-3.5 h-3.5" />
-                            <span>Онлайн-калькулятор оценки →</span>
+                            <span>{t.onlineCalcBtn}</span>
                           </button>
 
                           <a
-                            href={`https://wa.me/${SITE_INFO.whatsapp}?text=${encodeURIComponent('Здравствуйте! Хочу оценить свой iPhone по программе Trade-In в магазине Bylance.')}`}
+                            href={`https://wa.me/${SITE_INFO.whatsapp}?text=${encodeURIComponent(t.waTradeInFaqMsg)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs shadow-xs transition-all active:scale-95"
                           >
                             <MessageCircle className="w-3.5 h-3.5 fill-current" />
-                            <span>Оценить в WhatsApp у сотрудника</span>
+                            <span>{t.evaluateWaBtn}</span>
                           </a>
 
                           <a
@@ -1965,7 +2093,7 @@ export default function App() {
                             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#229ED9] hover:bg-[#1e8ec3] text-white font-bold text-xs shadow-xs transition-all active:scale-95"
                           >
                             <Send className="w-3.5 h-3.5" />
-                            <span>Канал Trade-In и Б/У в Telegram</span>
+                            <span>{t.tgTradeInChannelBtn}</span>
                           </a>
 
                           <button
@@ -1975,7 +2103,7 @@ export default function App() {
                             }}
                             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/15 text-slate-700 dark:text-slate-200 font-bold text-xs transition-all cursor-pointer"
                           >
-                            <span>Наверх к каталогу ↑</span>
+                            <span>{t.backToCatalogTop}</span>
                           </button>
                         </div>
                       )}
@@ -1989,7 +2117,7 @@ export default function App() {
                             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#229ED9] hover:bg-[#1e8ec3] text-white font-bold text-xs shadow-xs transition-all active:scale-95"
                           >
                             <Send className="w-3.5 h-3.5" />
-                            <span>Открыть Telegram-канал @{SITE_INFO.telegram} ↗</span>
+                            <span>{t.openTgChannel} @{SITE_INFO.telegram} ↗</span>
                           </a>
                         </div>
                       )}
@@ -2007,21 +2135,21 @@ export default function App() {
             <div className="p-5 sm:p-6 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-2xs">
               <div className="space-y-1 text-center sm:text-left min-w-0">
                 <h3 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
-                  Остались другие вопросы по товару или покупке?
+                  {t.otherQuestionsTitle}
                 </h3>
                 <p className="text-xs text-slate-600 dark:text-slate-300">
-                  Напишите нам в WhatsApp — наши ответят
+                  {t.otherQuestionsDesc}
                 </p>
               </div>
 
               <a
-                href={`https://wa.me/${SITE_INFO.whatsapp}?text=${encodeURIComponent('Здравствуйте! У меня есть вопрос по покупке техники в Bylance.')}`}
+                href={`https://wa.me/${SITE_INFO.whatsapp}?text=${encodeURIComponent(t.waGeneralQuestionMsg)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-5 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs sm:text-sm transition-all shadow-sm flex items-center justify-center gap-2 shrink-0 active:scale-95 whitespace-nowrap w-full sm:w-auto"
               >
                 <MessageCircle className="w-4 h-4 fill-current" />
-                <span>Задать вопрос в WhatsApp</span>
+                <span>{t.askWaBtn}</span>
               </a>
             </div>
 
@@ -2030,14 +2158,14 @@ export default function App() {
               <div className="space-y-1 text-center sm:text-left min-w-0">
                 <div className="flex items-center justify-center sm:justify-start gap-2">
                   <h3 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
-                    Ищете проверенную Б/У технику или Trade-In?
+                    {t.lookingForUsedTitle}
                   </h3>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#229ED9] text-white whitespace-nowrap hidden sm:inline-block">
-                    Только Б/У
+                    {t.onlyUsedBadge}
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-300">
-                  Вся проверенная Б/У техника и устройства по Trade-In выкладываются исключительно в нашем Telegram-канале с живыми фото, процентом АКБ и актуальными ценами.
+                  {t.lookingForUsedDesc}
                 </p>
               </div>
 
@@ -2048,7 +2176,7 @@ export default function App() {
                 className="px-5 py-2.5 rounded-xl bg-[#229ED9] hover:bg-[#1e8ec3] text-white font-bold text-xs sm:text-sm transition-all shadow-sm flex items-center justify-center gap-2 shrink-0 active:scale-95 whitespace-nowrap w-full sm:w-auto"
               >
                 <Send className="w-4 h-4" />
-                <span>Канал Б/У в Telegram ↗</span>
+                <span>{t.tgUsedBtn}</span>
               </a>
             </div>
 
@@ -2057,14 +2185,14 @@ export default function App() {
               <div className="space-y-1 text-center sm:text-left min-w-0">
                 <div className="flex items-center justify-center sm:justify-start gap-2">
                   <h3 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
-                    Хотите обменять старый iPhone на новую технику с доплатой?
+                    {t.wantTradeInTitle}
                   </h3>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white whitespace-nowrap hidden sm:inline-block">
                     Trade-In
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-300">
-                  По программе Trade-In принимаются исключительно оригинальные Apple iPhone. Оценка онлайн на сайте и точный осмотр в магазине!
+                  {t.wantTradeInDesc}
                 </p>
               </div>
 
@@ -2074,7 +2202,7 @@ export default function App() {
                 className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs sm:text-sm transition-all shadow-sm flex items-center justify-center gap-2 shrink-0 active:scale-95 whitespace-nowrap w-full sm:w-auto cursor-pointer"
               >
                 <RefreshCw className="w-4 h-4" />
-                <span>Оценить в калькуляторе онлайн →</span>
+                <span>{t.calcOnlineBtn}</span>
               </button>
             </div>
 
@@ -2087,19 +2215,19 @@ export default function App() {
         <section className="p-6 sm:p-8 rounded-2xl bg-white dark:bg-[#121622] border border-slate-200/80 dark:border-white/10 shadow-sm space-y-6">
           <div className="text-center max-w-xl mx-auto">
             <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white mb-2">
-              Почему технику выбирают в Bylance
+              {t.whyTitle}
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-              Надёжный магазин в Алматы с честными ценами и официальной гарантией
+              {t.whySubtitle}
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#181d2a] border border-slate-100 dark:border-white/5 space-y-2">
               <ShieldCheck className="w-6 h-6 text-[#7a0f2d] dark:text-[#ffead1]" />
-              <h3 className="font-bold text-sm text-slate-900 dark:text-white">100% Оригинал</h3>
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white">{t.adv1Title}</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Исключительно новые запечатанные устройства в заводской упаковке. Официальная гарантия 1 год на Apple и Dyson.
+                {t.adv1Desc}
               </p>
             </div>
 
@@ -2108,25 +2236,25 @@ export default function App() {
                 <KaspiIcon className="w-7 h-7 rounded-lg" />
                 <HalykIcon className="w-7 h-7" />
               </div>
-              <h3 className="font-bold text-sm text-slate-900 dark:text-white">Рассрочка Kaspi и Halyk</h3>
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white">{t.adv2Title}</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Оформление через Kaspi.kz и Halyk Bank на 3, 6, 12 или 24 месяца удаленно в WhatsApp или в магазине.
+                {t.adv2Desc}
               </p>
             </div>
 
             <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#181d2a] border border-slate-100 dark:border-white/5 space-y-2">
               <RefreshCw className="w-6 h-6 text-amber-500" />
-              <h3 className="font-bold text-sm text-slate-900 dark:text-white">Программа Trade-In</h3>
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white">{t.adv3Title}</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Принимаются исключительно оригинальные Apple iPhone: предварительный расчёт на сайте и точная оценка в магазине.
+                {t.adv3Desc}
               </p>
             </div>
 
             <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#181d2a] border border-slate-100 dark:border-white/5 space-y-2">
               <MessageCircle className="w-6 h-6 text-emerald-500" />
-              <h3 className="font-bold text-sm text-slate-900 dark:text-white">Быстрый заказ в WhatsApp</h3>
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white">{t.adv4Title}</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Заказ в 1 клик с карточки или отправка списка покупок из корзины прямо нашему менеджеру.
+                {t.adv4Desc}
               </p>
             </div>
           </div>
@@ -2139,13 +2267,13 @@ export default function App() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <span className="text-xs font-bold text-[#7a0f2d] dark:text-[#ffead1] uppercase tracking-wider">
-                Контакты и адреса
+                {t.contactsEyebrow}
               </span>
               <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">
-                Магазины Bylance
+                {t.contactsTitle}
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Один магазин продает только новые устройства, второй — б/у iPhone
+                {t.contactsSubtitle}
               </p>
             </div>
 
@@ -2157,7 +2285,7 @@ export default function App() {
                 className="px-4 py-2 text-xs font-bold rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white transition-all shadow-sm flex items-center gap-1.5"
               >
                 <MessageCircle className="w-4 h-4 fill-current" />
-                <span>Написать в WhatsApp</span>
+                <span>{t.writeWhatsApp}</span>
               </a>
 
               <a
@@ -2174,7 +2302,8 @@ export default function App() {
 
           {/* TWO STORE LOCATION CARDS */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-            {SITE_INFO.addresses.map((addr) => {
+            {SITE_INFO.addresses.map((rawAddr) => {
+              const addr = localizeStoreAddress(rawAddr, lang);
               const isUsed = addr.id === 'used-store';
               return (
                 <div
@@ -2213,7 +2342,7 @@ export default function App() {
                   </p>
                   <div className="mt-4 pt-3 border-t border-slate-200/60 dark:border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs">
                     <span className="text-slate-500 dark:text-slate-400">
-                      Режим: <b className="text-slate-700 dark:text-slate-200 font-semibold">{addr.hours}</b>
+                      {t.schedulePrefix} <b className="text-slate-700 dark:text-slate-200 font-semibold">{addr.hours}</b>
                     </span>
                     <div className="flex items-center gap-3">
                       {addr.phoneFormatted && (
@@ -2242,14 +2371,14 @@ export default function App() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-100 dark:border-white/10 text-xs sm:text-sm">
             <div className="space-y-1">
-              <span className="text-slate-400 block text-xs">График работы:</span>
+              <span className="text-slate-400 block text-xs">{t.workHoursLabel}</span>
               <p className="font-semibold text-slate-800 dark:text-slate-200">
                 10:00–22:00
               </p>
             </div>
 
             <div className="space-y-1">
-              <span className="text-slate-400 block text-xs">Номер телефона</span>
+              <span className="text-slate-400 block text-xs">{t.phoneNumberLabel}</span>
               <div className="flex flex-wrap items-center gap-3">
                 <a
                   href={`https://wa.me/${SITE_INFO.whatsapp}`}
@@ -2289,13 +2418,13 @@ export default function App() {
                 <div>
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-800 dark:text-amber-300 text-[11px] font-black uppercase tracking-wider mb-2 border border-amber-500/30">
                     <RefreshCw className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-                    <span>Оценка iPhone · Скупка и Trade-In в Алматы</span>
+                    <span>{t.valBadge}</span>
                   </div>
                   <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                    Узнайте, за сколько мы купим ваш iPhone
+                    {t.valTitle}
                   </h1>
                   <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl leading-relaxed">
-                    Выберите поколение, память и состояние. Расчёт появится сразу, а заявку можно мгновенно отправить в WhatsApp или зачесть в Trade-In на новую технику.
+                    {t.valDesc}
                   </p>
                 </div>
 
@@ -2305,7 +2434,7 @@ export default function App() {
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white self-start sm:self-auto px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#181d2a] hover:bg-slate-100 dark:hover:bg-[#202738] transition-colors cursor-pointer shrink-0"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Сбросить параметры</span>
+                  <span>{t.valReset}</span>
                 </button>
               </div>
 
@@ -2322,9 +2451,9 @@ export default function App() {
                       </span>
                       <div>
                         <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
-                          Поколение iPhone
+                          {t.step1Title}
                         </h3>
-                        <p className="text-[11px] text-slate-400">Выберите линейку вашего телефона</p>
+                        <p className="text-[11px] text-slate-400">{t.step1Desc}</p>
                       </div>
                     </div>
 
@@ -2357,9 +2486,9 @@ export default function App() {
                       </span>
                       <div>
                         <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
-                          Версия модели
+                          {t.step2Title}
                         </h3>
-                        <p className="text-[11px] text-slate-400">Выберите модификацию для iPhone {selectedGen.gen}</p>
+                        <p className="text-[11px] text-slate-400">{t.step2Desc(selectedGen.gen)}</p>
                       </div>
                     </div>
 
@@ -2377,7 +2506,7 @@ export default function App() {
                                 : 'bg-slate-50 dark:bg-[#181d2a] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/5 hover:bg-slate-100 dark:hover:bg-[#202738] hover:border-slate-300'
                             }`}
                           >
-                            {m.label}
+                            {localizeUsedModelLabel(m.label, lang)}
                           </button>
                         );
                       })}
@@ -2392,9 +2521,9 @@ export default function App() {
                       </span>
                       <div>
                         <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
-                          Объём встроенной памяти
+                          {t.step3Title}
                         </h3>
-                        <p className="text-[11px] text-slate-400">Указан в Настройки → Основные → Об этом устройстве</p>
+                        <p className="text-[11px] text-slate-400">{t.step3Desc}</p>
                       </div>
                     </div>
 
@@ -2429,10 +2558,10 @@ export default function App() {
                         </span>
                         <div>
                           <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
-                            Ёмкость аккумулятора (АКБ)
+                            {t.step4Title}
                           </h3>
                           <p className="text-[11px] text-slate-400">
-                            Настройки → Аккумулятор → Состояние аккумулятора
+                            {t.step4Desc}
                           </p>
                         </div>
                       </div>
@@ -2454,7 +2583,7 @@ export default function App() {
                         value={batteryPct}
                         onChange={(e) => setBatteryPct(Number(e.target.value))}
                         className="slider-battery"
-                        aria-label="Ёмкость аккумулятора"
+                        aria-label={t.step4Title}
                       />
                       <div className="flex justify-between text-xs font-semibold text-slate-400 px-1">
                         <span>50%</span>
@@ -2465,7 +2594,7 @@ export default function App() {
 
                       <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100 dark:border-white/5">
                         <span className="text-xs text-slate-500 dark:text-slate-400 mr-1 font-medium">
-                          Быстрый выбор:
+                          {t.quickSelect}
                         </span>
                         {BATTERY_PRESETS.map((pct) => (
                           <button
@@ -2494,17 +2623,18 @@ export default function App() {
                         </span>
                         <div>
                           <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
-                            Состояние корпуса и стекла
+                            {t.step5Title}
                           </h3>
-                          <p className="text-[11px] text-slate-400">Оцените внешний вид устройства</p>
+                          <p className="text-[11px] text-slate-400">{t.step5Desc}</p>
                         </div>
                       </div>
-                      <span className="text-xs text-slate-400 font-medium">4 градации</span>
+                      <span className="text-xs text-slate-400 font-medium">{t.gradations4}</span>
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       {BODY_CONDITIONS.map((b) => {
                         const isSelected = selectedBody.id === b.id;
+                        const bLoc = localizeBodyCondition(b.id, lang);
                         return (
                           <button
                             key={b.id}
@@ -2520,9 +2650,9 @@ export default function App() {
                               className="w-4 h-4 rounded-full mb-2 border border-black/20 dark:border-white/20 shadow-xs"
                               style={{ backgroundColor: b.color }}
                             />
-                            <span className="font-black text-xs sm:text-sm mb-1">{b.label}</span>
+                            <span className="font-black text-xs sm:text-sm mb-1">{bLoc.label}</span>
                             <span className={`text-[11px] leading-tight ${isSelected ? 'text-[#ffead1]/80' : 'text-slate-400'}`}>
-                              {b.hint}
+                              {bLoc.hint}
                             </span>
                           </button>
                         );
@@ -2538,9 +2668,9 @@ export default function App() {
                       </span>
                       <div>
                         <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
-                          Дополнительные параметры и нюансы
+                          {t.step6Title}
                         </h3>
-                        <p className="text-[11px] text-slate-400">Отметьте, если есть особенности комплектации или ремонта</p>
+                        <p className="text-[11px] text-slate-400">{t.step6Desc}</p>
                       </div>
                     </div>
 
@@ -2565,7 +2695,7 @@ export default function App() {
                             >
                               {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
                             </div>
-                            <span className="flex-1">{extra.label}</span>
+                            <span className="flex-1">{localizeExtraLabel(extra.id, extra.label, lang)}</span>
                           </button>
                         );
                       })}
@@ -2589,10 +2719,10 @@ export default function App() {
                         {isBlocked && <Check className="w-3 h-3 stroke-[3]" />}
                       </div>
                       <div className="flex-1">
-                        <span>{BLOCKED_REASON}</span>
+                        <span>{t.blockedReasonText}</span>
                         {isBlocked && (
                           <p className="text-[11px] text-rose-600 dark:text-rose-300 mt-1 font-normal leading-normal">
-                            Внимание: устройства с чужим Apple ID или блокировкой активации не выкупаются.
+                            {t.blockedWarning}
                           </p>
                         )}
                       </div>
@@ -2608,7 +2738,7 @@ export default function App() {
                     
                     <div className="flex items-center justify-between mb-4">
                       <span className="text-xs font-black text-[#7a0f2d] dark:text-amber-400 uppercase tracking-wider">
-                        Предварительный расчет
+                        {t.prelimCalcTitle}
                       </span>
                       <button
                         type="button"
@@ -2617,7 +2747,7 @@ export default function App() {
                         className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors disabled:opacity-40 cursor-pointer font-bold"
                       >
                         <Copy className="w-3.5 h-3.5" />
-                        <span>{copiedValuation ? 'Скопировано!' : 'Копировать'}</span>
+                        <span>{copiedValuation ? t.copied : t.copy}</span>
                       </button>
                     </div>
 
@@ -2628,13 +2758,13 @@ export default function App() {
                             {formatPrice(calculation.price)}
                           </div>
                           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-snug">
-                            Итоговая сумма подтверждается после 5-минутного осмотра в магазине (ул. Василия Клочкова, 119 или 2 этаж, 20 сектор, 23 витрина)
+                            {t.finalSumNote}
                           </p>
                         </div>
                       ) : (
                         <div>
                           <div className="text-2xl font-black text-rose-600 dark:text-rose-400">
-                            Выкуп невозможен
+                            {t.buybackImpossible}
                           </div>
                           <p className="text-xs text-rose-500 dark:text-rose-300 mt-1">
                             {calculation.reason}
@@ -2646,22 +2776,22 @@ export default function App() {
                     {calculation.canBuy && (
                       <div className="py-3 px-3.5 rounded-2xl bg-slate-50 dark:bg-[#182033] border border-slate-200/70 dark:border-white/10 text-xs text-slate-700 dark:text-slate-200 space-y-2 mb-6">
                         <div className="flex items-center justify-between">
-                          <span className="text-slate-500 dark:text-slate-400">Модель:</span>
+                          <span className="text-slate-500 dark:text-slate-400">{t.modelLabel}</span>
                           <span className="font-bold text-slate-900 dark:text-white">
                             {selectedModel.name} · {formatStorage(selectedStorage)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-slate-500 dark:text-slate-400">АКБ:</span>
+                          <span className="text-slate-500 dark:text-slate-400">{t.batteryShort}</span>
                           <span className="font-bold font-mono text-slate-900 dark:text-white">{batteryPct}%</span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-slate-500 dark:text-slate-400">Корпус:</span>
-                          <span className="font-bold text-slate-900 dark:text-white">{selectedBody.label}</span>
+                          <span className="text-slate-500 dark:text-slate-400">{t.bodyShort}</span>
+                          <span className="font-bold text-slate-900 dark:text-white">{localizeBodyCondition(selectedBody.id, lang).label}</span>
                         </div>
                         {calculation.activeExtrasLabels.length > 0 && (
                           <div className="flex items-start justify-between pt-1.5 border-t border-slate-200/60 dark:border-white/10">
-                            <span className="text-slate-500 dark:text-slate-400">Особенности:</span>
+                            <span className="text-slate-500 dark:text-slate-400">{t.extrasShort}</span>
                             <span className="font-bold text-right text-slate-900 dark:text-white pl-2">
                               {calculation.activeExtrasLabels.join(', ')}
                             </span>
@@ -2684,7 +2814,7 @@ export default function App() {
                         }`}
                       >
                         <MessageCircle className="w-4 h-4 fill-current" />
-                        <span>Отправить заявку на выкуп в WhatsApp</span>
+                        <span>{t.sendBuybackWa}</span>
                       </a>
 
                       {/* Button 2: Apply to Trade-In for New Device */}
@@ -2699,7 +2829,7 @@ export default function App() {
                         }`}
                       >
                         <RefreshCw className="w-4 h-4" />
-                        <span>Обменять на новый по Trade-In (скидка {formatPrice(calculation.price)})</span>
+                        <span>{t.applyTradeInBtn(formatPrice(calculation.price))}</span>
                       </button>
                     </div>
 
@@ -2707,15 +2837,15 @@ export default function App() {
                     <div className="mt-6 pt-5 border-t border-slate-100 dark:border-white/10 space-y-2.5 text-xs text-slate-600 dark:text-slate-400">
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                        <span>Деньги сразу: наличными или переводом на Kaspi Gold</span>
+                        <span>{t.guarantee1}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                        <span>Быстрая диагностика за 5–10 минут при вас</span>
+                        <span>{t.guarantee2}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                        <span>Честный расчет без скрытых комиссий</span>
+                        <span>{t.guarantee3}</span>
                       </div>
                     </div>
 
@@ -2736,18 +2866,18 @@ export default function App() {
                         </div>
                         <div className="min-w-0">
                           <div className="text-[11px] uppercase tracking-wider font-extrabold text-[#229ED9]">
-                            Каталог Б/У в Telegram:
+                            {t.tgCardEyebrow}
                           </div>
                           <div className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
                             @{SITE_INFO.telegram} ↗
                           </div>
                           <div className="text-[10px] sm:text-[11px] text-slate-600 dark:text-slate-300">
-                            Реальные фото устройств и остаток АКБ
+                            {t.tgCardDesc}
                           </div>
                         </div>
                       </div>
                       <div className="shrink-0 px-3 py-1.5 rounded-xl bg-[#229ED9] text-white text-xs font-black shadow-xs group-hover:bg-[#1a8bc0] transition-colors flex items-center gap-1">
-                        <span>Открыть</span>
+                        <span>{t.openBtn}</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </div>
                     </div>
@@ -2763,13 +2893,13 @@ export default function App() {
             <section id="how" className="py-8 bg-white dark:bg-[#121622] rounded-3xl p-6 sm:p-8 border border-slate-200/80 dark:border-white/10 shadow-xs scroll-mt-20">
               <div className="text-center max-w-xl mx-auto mb-8">
                 <span className="text-xs font-black uppercase tracking-wider text-[#7a0f2d] dark:text-amber-400">
-                  Прозрачный процесс
+                  {t.howEyebrow}
                 </span>
                 <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white mt-1">
-                  Как работает скупка и Trade-In в Bylance
+                  {t.howTitle}
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-                  Всего 3 простых шага от онлайн-оценки до получения денег или нового телефона
+                  {t.howSubtitle}
                 </p>
               </div>
 
@@ -2779,10 +2909,10 @@ export default function App() {
                     1
                   </div>
                   <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
-                    Оцените онлайн
+                    {t.howStep1Title}
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                    Выберите вашу модель iPhone, объём памяти и состояние аккумулятора в калькуляторе выше. Это занимает ровно минуту.
+                    {t.howStep1Desc}
                   </p>
                 </div>
 
@@ -2791,10 +2921,10 @@ export default function App() {
                     2
                   </div>
                   <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
-                    Отправьте заявку в WhatsApp
+                    {t.howStep2Title}
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                    Нажмите «Отправить заявку» — откроется WhatsApp с заполненной спецификацией вашего устройства. Менеджер подтвердит время визита.
+                    {t.howStep2Desc}
                   </p>
                 </div>
 
@@ -2803,10 +2933,10 @@ export default function App() {
                     3
                   </div>
                   <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
-                    Приезжайте и получите оплату
+                    {t.howStep3Title}
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                    Мастер проверит телефон за 5–10 минут в магазине Bylance. Сразу выплачиваем деньги наличными/Kaspi или оформляем новый гаджет с зачетом суммы.
+                    {t.howStep3Desc}
                   </p>
                 </div>
               </div>
@@ -2816,18 +2946,18 @@ export default function App() {
             <section className="space-y-4">
               <div className="text-center max-w-xl mx-auto">
                 <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
-                  Частые вопросы по выкупу
+                  {t.valFaqEyebrow}
                 </span>
                 <h2 className="text-2xl sm:text-3xl font-extrabold text-[#2a1a1f] dark:text-[#ffead1] mt-1">
-                  Вопросы о выкупе и Trade-In iPhone
+                  {t.valFaqTitle}
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-500 dark:text-[#ffead1]/70 mt-1">
-                  Всё о диагностике, расчёте стоимости, способах выплаты и обмене на новый гаджет
+                  {t.valFaqSubtitle}
                 </p>
               </div>
 
               <div className="max-w-3xl mx-auto space-y-3 pt-2">
-                {VALUATION_FAQ_LIST.map((faq) => {
+                {getValuationFaqList(lang).map((faq) => {
                   const isOpen = openFaqId === faq.id;
                   return (
                     <div
@@ -2868,14 +2998,14 @@ export default function App() {
                 </div>
                 <div>
                   <div className="text-[11px] font-black uppercase tracking-wider text-[#229ED9] flex items-center justify-center md:justify-start gap-1.5">
-                    <span>Канал проверенной техники</span>
+                    <span>{t.verifiedChannelBadge}</span>
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   </div>
                   <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-0.5">
-                    Каталог Б/У в Telegram: <span className="text-[#229ED9] underline decoration-2">@{SITE_INFO.telegram} ↗</span>
+                    {t.tgShowcaseTitle} <span className="text-[#229ED9] underline decoration-2">@{SITE_INFO.telegram} ↗</span>
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-1 max-w-xl">
-                    Каждый день выкладываем проверенные iPhone с остатком аккумулятора, подробными фото и ценой выкупа/продажи.
+                    {t.tgShowcaseDesc}
                   </p>
                 </div>
               </div>
@@ -2886,7 +3016,7 @@ export default function App() {
                 className="shrink-0 px-6 py-3.5 rounded-2xl bg-[#229ED9] hover:bg-[#1a8bc0] text-white font-extrabold text-sm shadow-md transition-all active:scale-95 flex items-center gap-2 cursor-pointer whitespace-nowrap"
               >
                 <Send className="w-4 h-4" />
-                <span>Перейти в @{SITE_INFO.telegram} ↗</span>
+                <span>{t.goToTg} @{SITE_INFO.telegram} ↗</span>
               </a>
             </div>
 
@@ -2898,13 +3028,13 @@ export default function App() {
                 </div>
                 <div>
                   <div className="text-[11px] font-black uppercase tracking-wider text-[#7a0f2d] dark:text-[#ffead1]">
-                    Каталог техники в наличии
+                    {t.catalogInStockEyebrow}
                   </div>
                   <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white mt-0.5">
-                    Готовы выбрать новое устройство?
+                    {t.readyToChooseTitle}
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-1 max-w-xl">
-                    В нашем каталоге представлены новые запечатанные Apple iPhone 16/15, MacBook, iPad, стайлеры Dyson и фототехника с гарантией и рассрочкой.
+                    {t.readyToChooseDesc}
                   </p>
                 </div>
               </div>
@@ -2913,7 +3043,7 @@ export default function App() {
                 onClick={() => navigateTo('catalog')}
                 className="shrink-0 px-6 py-3 rounded-2xl bg-[#7a0f2d] hover:bg-[#8e1236] text-[#ffead1] font-extrabold text-sm shadow-md transition-all active:scale-95 flex items-center gap-2 cursor-pointer whitespace-nowrap"
               >
-                <span>Перейти в каталог магазина</span>
+                <span>{t.goToCatalogBtn}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -2926,12 +3056,21 @@ export default function App() {
       {/* ====================================================================== */}
       <footer className="mt-12 border-t border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#0a0d14] py-8 text-xs text-slate-500 dark:text-slate-400 transition-colors">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-black text-[#7a0f2d] dark:text-[#ffead1] text-sm">
-              {SITE_INFO.shopName}
-            </span>
-            <span>·</span>
-            <span>Магазин оригинальной электроники в Алматы</span>
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-24 sm:w-28 rounded-xl overflow-hidden bg-[#490203] border border-[#d4af5a]/40 shadow-xs shrink-0">
+              <img
+                src={logoSrc}
+                alt="BYLANCE — Байланыста Zaagaru"
+                className="w-full h-full object-cover object-center scale-125"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-black text-[#7a0f2d] dark:text-[#ffead1] text-sm">
+                {SITE_INFO.shopName}
+              </span>
+              <span>·</span>
+              <span>{t.footerDesc}</span>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-4 text-xs font-semibold">
@@ -2940,23 +3079,23 @@ export default function App() {
               onClick={() => navigateTo('catalog')}
               className={`hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer ${activePage === 'catalog' ? 'text-[#7a0f2d] dark:text-[#ffead1] font-bold' : ''}`}
             >
-              Каталог
+              {t.navCatalog}
             </button>
             <button
               type="button"
               onClick={() => navigateTo('valuation')}
               className={`hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer ${activePage === 'valuation' ? 'text-amber-600 dark:text-amber-400 font-bold' : ''}`}
             >
-              Оценка iPhone
+              {t.navValuationShort}
             </button>
             <a href="#founder" onClick={() => { if (activePage !== 'catalog') navigateTo('catalog'); }} className="hover:text-slate-900 dark:hover:text-white transition-colors">
-              Об основательнице
+              {t.navFounder}
             </a>
             <a href="#faq" className="hover:text-slate-900 dark:hover:text-white transition-colors">
-              FAQ
+              {t.navFaq}
             </a>
             <a href="#contacts" className="hover:text-slate-900 dark:hover:text-white transition-colors">
-              Контакты
+              {t.navContacts}
             </a>
             <a
               href={`https://wa.me/${SITE_INFO.whatsapp}`}
@@ -2972,7 +3111,7 @@ export default function App() {
               rel="noopener noreferrer"
               className="text-[#229ED9] hover:underline"
             >
-              Telegram (Б/У)
+              Telegram ({lang === 'kk' ? 'Қ/Б' : 'Б/У'})
             </a>
           </div>
         </div>
@@ -2982,7 +3121,7 @@ export default function App() {
       {/* 10. FIXED BOTTOM NAVIGATION BAR ("ОТДЕЛЬНАЯ СТРАНИЦА СНИЗУ")           */}
       {/* ====================================================================== */}
       <nav
-        aria-label="Нижняя панель навигации"
+        aria-label={t.navCatalog}
         className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#0c101a]/95 backdrop-blur-md border-t border-slate-200/80 dark:border-white/10 shadow-2xl px-2 sm:px-6 py-2 transition-colors md:hidden"
       >
         <div className="max-w-xl mx-auto flex items-center justify-around gap-1 sm:gap-2">
@@ -3005,7 +3144,7 @@ export default function App() {
             >
               <ShoppingCart className="w-5 h-5" />
             </div>
-            <span className="text-[11px] sm:text-xs tracking-tight">Каталог</span>
+            <span className="text-[11px] sm:text-xs tracking-tight">{t.navCatalog}</span>
           </button>
 
           {/* 2. Оценка iPhone */}
@@ -3027,7 +3166,7 @@ export default function App() {
             >
               <RefreshCw className="w-5 h-5" />
             </div>
-            <span className="text-[11px] sm:text-xs tracking-tight">Оценка iPhone</span>
+            <span className="text-[11px] sm:text-xs tracking-tight">{t.navValuationShort}</span>
           </button>
 
           {/* 3. Корзина */}
@@ -3049,17 +3188,17 @@ export default function App() {
             <span className="text-[11px] sm:text-xs tracking-tight">
               {cartTotals.totalCount > 0 ? (
                 <span className="font-bold text-[#7a0f2d] dark:text-[#ffead1] font-mono">
-                  {cartTotals.totalPrice > 0 ? formatPrice(cartTotals.totalPrice) : 'Корзина'}
+                  {cartTotals.totalPrice > 0 ? formatPrice(cartTotals.totalPrice) : t.cartLabel}
                 </span>
               ) : (
-                'Корзина'
+                t.cartLabel
               )}
             </span>
           </button>
 
           {/* 4. WhatsApp */}
           <a
-            href={`https://wa.me/${SITE_INFO.whatsapp}?text=${encodeURIComponent('Здравствуйте! Хочу проконсультироваться по покупке или Trade-In в магазине Bylance.')}`}
+            href={`https://wa.me/${SITE_INFO.whatsapp}?text=${encodeURIComponent(t.waDefaultConsult)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex-1 py-1 px-2 rounded-2xl flex flex-col items-center justify-center gap-0.5 text-center text-slate-500 dark:text-slate-400 hover:text-[#25D366] font-semibold transition-all"
@@ -3092,17 +3231,17 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <ShoppingCart className="w-5 h-5 text-[#7a0f2d] dark:text-[#ffead1]" />
                 <h2 className="text-lg font-black tracking-tight">
-                  Корзина товаров
+                  {t.cartHeader}
                 </h2>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-[#ffead1] dark:bg-[#7a0f2d]/50 font-bold text-[#7a0f2d] dark:text-[#ffead1]">
-                  {cartTotals.totalCount} шт.
+                  {cartTotals.totalCount} {t.piecesShort}
                 </span>
               </div>
 
               <button
                 onClick={() => setIsCartOpen(false)}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
-                aria-label="Закрыть корзину"
+                aria-label={t.closeCartAria}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -3110,7 +3249,7 @@ export default function App() {
 
             {/* Quick Helper Note (Non-scrolling) */}
             <div className="px-4 py-2.5 bg-slate-50 dark:bg-[#121622] border-b border-slate-200/80 dark:border-white/10 text-[11px] text-slate-600 dark:text-slate-400 shrink-0">
-              Вы можете выбрать разный способ оплаты для каждого товара (например, один через Kaspi, другой за наличные).
+              {t.cartHelperNote}
             </div>
 
             {/* Cart Items List (Smooth, isolated scroll on mobile & tablet) */}
@@ -3121,16 +3260,16 @@ export default function App() {
                     <ShoppingCart className="w-8 h-8" />
                   </div>
                   <p className="text-base font-bold text-slate-700 dark:text-[#ffead1]">
-                    В корзине пока ничего нет
+                    {t.cartEmptyTitle}
                   </p>
                   <p className="text-xs text-slate-400 max-w-xs mx-auto">
-                    Выберите нужные товары в каталоге и добавьте их в корзину для быстрой отправки заказа в WhatsApp.
+                    {t.cartEmptyDesc}
                   </p>
                   <button
                     onClick={() => setIsCartOpen(false)}
                     className="mt-2 px-4 py-2 rounded-xl bg-[#7a0f2d] text-[#ffead1] text-xs font-bold hover:bg-[#b4401f] transition-colors"
                   >
-                    Перейти в каталог
+                    {t.goCatalogBtn}
                   </button>
                 </div>
               ) : (
@@ -3150,7 +3289,7 @@ export default function App() {
                         <div className="w-14 h-14 rounded-xl bg-white p-1 shrink-0 overflow-hidden border border-slate-200/60 dark:border-white/10 flex items-center justify-center shadow-2xs">
                           <ProductImage
                             src={item.image}
-                            alt={item.fullName}
+                            alt={localizeProductName(item.fullName, lang)}
                             size="thumb"
                             className="w-full h-full object-contain rounded-lg"
                           />
@@ -3159,17 +3298,17 @@ export default function App() {
                         {/* Info */}
                         <div className="flex-1 min-w-0">
                           <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white leading-tight">
-                            {item.fullName}
+                            {localizeProductName(item.fullName, lang)}
                           </h4>
                           {item.colorName && (
                             <div className="text-[11px] font-semibold text-rose-700 dark:text-rose-300 mt-0.5">
-                              Цвет: {item.colorName}
+                              {t.colorPrefix} {localizeColorName(item.colorName, lang)}
                             </div>
                           )}
                           <div className="text-[11px] text-slate-400 mt-0.5 whitespace-nowrap">
                             {unitPrice !== null && unitPrice !== undefined
-                              ? `${formatPrice(unitPrice)} за шт.`
-                              : 'Цена по запросу'}
+                              ? `${formatPrice(unitPrice)} ${t.perPieceSuffix}`
+                              : t.onRequest}
                           </div>
                         </div>
 
@@ -3177,7 +3316,7 @@ export default function App() {
                         <button
                           onClick={() => removeFromCart(index)}
                           className="p-1 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors shrink-0"
-                          aria-label="Удалить товар"
+                          aria-label={t.removeItemAria}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -3186,11 +3325,12 @@ export default function App() {
                       {/* INDIVIDUAL PAYMENT METHOD SELECTION */}
                       <div className="space-y-1 pt-1 border-t border-slate-100 dark:border-white/5">
                         <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block">
-                          Способ оплаты для этого товара:
+                          {t.paymentForItemLabel}
                         </span>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-1">
                           {PAYMENT_METHODS.map((pm) => {
                             const isSelected = item.paymentMethod === pm.id;
+                            const pmLoc = localizePaymentMethod(pm.id, lang);
                             return (
                               <button
                                 key={pm.id}
@@ -3205,7 +3345,7 @@ export default function App() {
                                 }`}
                               >
                                 <PaymentMethodIcon method={pm.id} className="w-3 h-3 shrink-0" />
-                                <span className="truncate">{pm.shortLabel}</span>
+                                <span className="truncate">{pmLoc.shortLabel}</span>
                               </button>
                             );
                           })}
@@ -3219,7 +3359,7 @@ export default function App() {
                             type="button"
                             onClick={() => updateCartQuantity(index, -1)}
                             className="p-1 rounded bg-white dark:bg-[#181d2a] text-slate-700 dark:text-slate-300 hover:bg-slate-200"
-                            aria-label="Уменьшить количество"
+                            aria-label={t.decreaseQtyAria}
                           >
                             <Minus className="w-3 h-3" />
                           </button>
@@ -3230,7 +3370,7 @@ export default function App() {
                             type="button"
                             onClick={() => updateCartQuantity(index, 1)}
                             className="p-1 rounded bg-[#7a0f2d] text-[#ffead1] hover:bg-[#b4401f]"
-                            aria-label="Увеличить количество"
+                            aria-label={t.increaseQtyAria}
                           >
                             <Plus className="w-3 h-3" />
                           </button>
@@ -3238,7 +3378,7 @@ export default function App() {
 
                         <div className="text-right">
                           <div className="text-sm font-black font-mono text-[#7a0f2d] dark:text-[#ffead1] whitespace-nowrap shrink-0">
-                            {itemTotal !== null ? formatPrice(itemTotal) : 'По запросу'}
+                            {itemTotal !== null ? formatPrice(itemTotal) : t.onRequest}
                           </div>
                           {item.paymentMethod === 'cash' && item.prices.kaspi && itemTotal !== null && (
                             <div className="text-[10px] text-rose-500 dark:text-rose-400 line-through font-bold">
@@ -3262,10 +3402,10 @@ export default function App() {
                   <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700/60 flex items-center justify-between text-xs">
                     <div>
                       <span className="font-bold text-emerald-800 dark:text-emerald-300 block">
-                        Скидка Trade-In ({tradeInApplied.modelName})
+                        {t.tradeInCartDiscount(tradeInApplied.modelName)}
                       </span>
                       <span className="text-[10px] text-emerald-600 dark:text-emerald-400">
-                        Учтено по предварительной оценке
+                        {t.tradeInPrelimNote}
                       </span>
                     </div>
                     <span className="font-mono font-black text-emerald-700 dark:text-emerald-300 whitespace-nowrap">
@@ -3277,21 +3417,19 @@ export default function App() {
                     type="button"
                     onClick={() => {
                       setIsCartOpen(false);
-                      setTimeout(() => {
-                        document.getElementById('valuation')?.scrollIntoView({ behavior: 'smooth' });
-                      }, 150);
+                      navigateTo('valuation');
                     }}
                     className="w-full py-2 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-300/60 dark:border-amber-500/30 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <RefreshCw className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                    <span>Сдать свой старый iPhone в Trade-In (минус от цены)</span>
+                    <span>{t.tradeInFromCartBtn}</span>
                   </button>
                 )}
 
                 <div className="space-y-1 text-xs">
                   <div className="flex items-center justify-between gap-3 text-base sm:text-lg font-black">
                     <span className="text-slate-900 dark:text-white shrink-0">
-                      {tradeInApplied ? 'Итого к доплате:' : 'Итого к оплате:'}
+                      {tradeInApplied ? t.totalToPayWithTradeIn : t.totalToPay}
                     </span>
                     <span className="text-[#7a0f2d] dark:text-[#ffead1] font-mono text-xl whitespace-nowrap shrink-0 text-right">
                       {formatPrice(Math.max(0, cartTotals.totalPrice - (tradeInApplied ? tradeInApplied.price : 0)))}
@@ -3299,7 +3437,7 @@ export default function App() {
                   </div>
                   {cartTotals.hasUnpricedItems && (
                     <p className="text-[11px] text-amber-600 dark:text-amber-400">
-                      * В заказе есть позиции с ценой по запросу, менеджер уточнит их стоимость в WhatsApp.
+                      {t.unpricedNote}
                     </p>
                   )}
                 </div>
@@ -3311,7 +3449,7 @@ export default function App() {
                   className="w-full py-3.5 px-4 rounded-xl font-bold text-sm sm:text-base text-white bg-[#25D366] hover:bg-[#20ba59] transition-all shadow-md flex items-center justify-center gap-2 active:scale-[0.99]"
                 >
                   <MessageCircle className="w-5 h-5 fill-current" />
-                  <span>Оформить заказ через WhatsApp</span>
+                  <span>{t.checkoutWaBtn}</span>
                 </button>
 
                 {/* Secondary Actions */}
@@ -3321,14 +3459,14 @@ export default function App() {
                     className="inline-flex items-center gap-1 text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors"
                   >
                     <Copy className="w-3.5 h-3.5" />
-                    <span>{copiedNotification ? 'Текст заказа скопирован!' : 'Скопировать текст заказа'}</span>
+                    <span>{copiedNotification ? t.orderCopied : t.copyOrderText}</span>
                   </button>
 
                   <button
                     onClick={clearCart}
                     className="text-rose-600 hover:text-rose-700 dark:text-rose-400 hover:underline"
                   >
-                    Очистить корзину
+                    {t.clearCartBtn}
                   </button>
                 </div>
               </div>
