@@ -784,7 +784,7 @@ export const PRODUCT_MODELS: ProductModel[] = [
     category: 'apple',
     subcategory: 'AirPods',
     warranty: '1 год официальной гарантии',
-    image: PRODUCT_IMAGES.airpods,
+    image: WEBP_IMAGES.airpods4,
     variants: [
       {
         id: 'airpods-4-base',
@@ -803,7 +803,7 @@ export const PRODUCT_MODELS: ProductModel[] = [
     category: 'apple',
     subcategory: 'AirPods',
     warranty: '1 год официальной гарантии',
-    image: PRODUCT_IMAGES.airpods,
+    image: WEBP_IMAGES.airpods5,
     variants: [
       {
         id: 'airpods-5',
@@ -822,7 +822,7 @@ export const PRODUCT_MODELS: ProductModel[] = [
     category: 'apple',
     subcategory: 'AirPods',
     warranty: '1 год официальной гарантии',
-    image: PRODUCT_IMAGES.airpods,
+    image: WEBP_IMAGES.airpods5,
     variants: [
       {
         id: 'airpods-5-wireless',
@@ -841,7 +841,7 @@ export const PRODUCT_MODELS: ProductModel[] = [
     category: 'apple',
     subcategory: 'AirPods',
     warranty: '1 год официальной гарантии',
-    image: PRODUCT_IMAGES.airpods,
+    image: WEBP_IMAGES.airpodsPro,
     variants: [
       {
         id: 'airpods-pro',
@@ -1096,9 +1096,9 @@ export const PRODUCT_MODELS: ProductModel[] = [
     category: 'other',
     subcategory: 'Canon',
     warranty: '1 год официальной гарантии',
-    image: PRODUCT_IMAGES.canon,
+    image: WEBP_IMAGES.canonG7Mark3Grey,
     colorOptions: [
-      { id: 'grey', name: 'Серый (Silver Grey)', hex: '#94959a', image: PRODUCT_IMAGES.canon },
+      { id: 'grey', name: 'Серый (Silver Grey)', hex: '#94959a', image: WEBP_IMAGES.canonG7Mark3Grey },
     ],
     variants: [
       {
@@ -1114,9 +1114,9 @@ export const PRODUCT_MODELS: ProductModel[] = [
     category: 'other',
     subcategory: 'Canon',
     warranty: '1 год официальной гарантии',
-    image: PRODUCT_IMAGES.canon,
+    image: WEBP_IMAGES.canonG7Mark3Black,
     colorOptions: [
-      { id: 'black', name: 'Черный (Black)', hex: '#1c1d1f', image: PRODUCT_IMAGES.canon },
+      { id: 'black', name: 'Черный (Black)', hex: '#1c1d1f', image: WEBP_IMAGES.canonG7Mark3Black },
     ],
     variants: [
       {
@@ -1132,9 +1132,9 @@ export const PRODUCT_MODELS: ProductModel[] = [
     category: 'other',
     subcategory: 'Canon',
     warranty: '1 год официальной гарантии',
-    image: PRODUCT_IMAGES.canon,
+    image: WEBP_IMAGES.canonG7Mark3Grey,
     colorOptions: [
-      { id: 'limit', name: 'Лимитированная серия', hex: '#b58e48', image: PRODUCT_IMAGES.canon },
+      { id: 'limit', name: 'Лимитированная серия', hex: '#b58e48', image: WEBP_IMAGES.canonG7Mark3Grey },
     ],
     variants: [
       {
@@ -1150,7 +1150,7 @@ export const PRODUCT_MODELS: ProductModel[] = [
     category: 'other',
     subcategory: 'Canon',
     warranty: '1 год официальной гарантии',
-    image: PRODUCT_IMAGES.canon,
+    image: WEBP_IMAGES.canonSx740,
     variants: [
       {
         id: 'canon-sx740',
@@ -1169,7 +1169,7 @@ export const PRODUCT_MODELS: ProductModel[] = [
     category: 'other',
     subcategory: 'Sony',
     warranty: '1 год официальной гарантии',
-    image: PRODUCT_IMAGES.sony,
+    image: WEBP_IMAGES.sonyZve10,
     variants: [
       {
         id: 'sony-zve10',
@@ -1188,7 +1188,7 @@ export const PRODUCT_MODELS: ProductModel[] = [
     category: 'other',
     subcategory: 'Ray-Ban',
     warranty: '1 год официальной гарантии',
-    image: PRODUCT_IMAGES.rayban,
+    image: WEBP_IMAGES.raybanGen1,
     variants: [
       {
         id: 'rayban-gen1',
@@ -1203,7 +1203,7 @@ export const PRODUCT_MODELS: ProductModel[] = [
     category: 'other',
     subcategory: 'Ray-Ban',
     warranty: '1 год официальной гарантии',
-    image: PRODUCT_IMAGES.rayban,
+    image: WEBP_IMAGES.raybanGen2,
     variants: [
       {
         id: 'rayban-gen2',
@@ -1222,7 +1222,7 @@ export const PRODUCT_MODELS: ProductModel[] = [
     category: 'other',
     subcategory: 'DJI',
     warranty: '1 год официальной гарантии',
-    image: PRODUCT_IMAGES.dji,
+    image: WEBP_IMAGES.djiMicMini,
     variants: [
       {
         id: 'dji-mic-mini',
@@ -1237,9 +1237,9 @@ export const PRODUCT_MODELS: ProductModel[] = [
     category: 'other',
     subcategory: 'DJI',
     warranty: '1 год официальной гарантии',
-    image: PRODUCT_IMAGES.dji,
+    image: WEBP_IMAGES.djiMicMiniBlack,
     colorOptions: [
-      { id: 'black', name: 'Черный (Black)', hex: '#1c1d1f', image: PRODUCT_IMAGES.dji },
+      { id: 'black', name: 'Черный (Black)', hex: '#1c1d1f', image: WEBP_IMAGES.djiMicMiniBlack },
     ],
     variants: [
       {
@@ -1255,7 +1255,7 @@ export const PRODUCT_MODELS: ProductModel[] = [
     category: 'other',
     subcategory: 'DJI',
     warranty: '1 год официальной гарантии',
-    image: PRODUCT_IMAGES.dji,
+    image: WEBP_IMAGES.djiOsmoPocket4,
     variants: [
       {
         id: 'dji-pocket4-standart',
@@ -1270,7 +1270,7 @@ export const PRODUCT_MODELS: ProductModel[] = [
     category: 'other',
     subcategory: 'DJI',
     warranty: '1 год официальной гарантии',
-    image: PRODUCT_IMAGES.dji,
+    image: WEBP_IMAGES.djiOsmoPocket4,
     variants: [
       {
         id: 'dji-pocket4-creator',
@@ -1285,7 +1285,7 @@ export const PRODUCT_MODELS: ProductModel[] = [
     category: 'other',
     subcategory: 'DJI',
     warranty: '1 год официальной гарантии',
-    image: PRODUCT_IMAGES.dji,
+    image: WEBP_IMAGES.djiOsmoPocket4,
     variants: [
       {
         id: 'dji-pocket4-p-combo',
@@ -1304,7 +1304,7 @@ export const PRODUCT_MODELS: ProductModel[] = [
     category: 'other',
     subcategory: 'Яндекс Станция',
     warranty: '1 год официальной гарантии',
-    image: PRODUCT_IMAGES.yandex,
+    image: WEBP_IMAGES.yandexLite2,
     variants: [
       {
         id: 'yandex-lite2',
@@ -1319,7 +1319,7 @@ export const PRODUCT_MODELS: ProductModel[] = [
     category: 'other',
     subcategory: 'Яндекс Станция',
     warranty: '1 год официальной гарантии',
-    image: PRODUCT_IMAGES.yandex,
+    image: WEBP_IMAGES.yandexStreet,
     variants: [
       {
         id: 'yandex-street',
@@ -1334,7 +1334,7 @@ export const PRODUCT_MODELS: ProductModel[] = [
     category: 'other',
     subcategory: 'Яндекс Станция',
     warranty: '1 год официальной гарантии',
-    image: PRODUCT_IMAGES.yandex,
+    image: WEBP_IMAGES.yandexMidi,
     variants: [
       {
         id: 'yandex-midi',

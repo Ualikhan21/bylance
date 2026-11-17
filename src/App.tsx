@@ -3111,7 +3111,7 @@ export default function App() {
               rel="noopener noreferrer"
               className="text-[#229ED9] hover:underline"
             >
-              Telegram ({lang === 'kk' ? 'Қ/Б' : 'Б/У'})
+              Telegram (Б/У)
             </a>
           </div>
         </div>

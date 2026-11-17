@@ -21,6 +21,15 @@ export const getProductWebpUrl = (filename: string) => {
   return `${cleanBaseUrl}products/${filename}`;
 };
 
+export const getAistudioAssetUrl = (filename: string) => {
+  const envBase = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.BASE_URL) || '/';
+  if (!envBase || envBase === '/' || envBase === './') {
+    return `/assets/aistudio/${filename}`;
+  }
+  const cleanBaseUrl = envBase.endsWith('/') ? envBase : `${envBase}/`;
+  return `${cleanBaseUrl}assets/aistudio/${filename}`;
+};
+
 // Standard fallback studio assets
 export const PRODUCT_IMAGES = {
   iphone: iphoneDesertImg,
@@ -34,13 +43,13 @@ export const PRODUCT_IMAGES = {
   watch: watchImg,
   dyson: dysonImg,
   sony: sonyImg,
-  canon: sonyImg, // high-end camera image
+  canon: sonyImg, // high-end camera fallback
   rayban: raybanImg,
   dji: djiImg,
   yandex: yandexImg,
 };
 
-// WebP image URLs placed in /public/products/
+// WebP image URLs placed in /public/products/ and /public/assets/aistudio/
 export const WEBP_IMAGES = {
   // Apple Watch 11
   watch11Black: getProductWebpUrl('apple_watch_11_42_black.webp'),
@@ -101,4 +110,29 @@ export const WEBP_IMAGES = {
   macbookNeoPink: getProductWebpUrl('macbook_neo_13_pink.webp'),
   macbookNeoSilver: getProductWebpUrl('macbook_neo_13_silver.webp'),
   macbookNeoYellow: getProductWebpUrl('macbook_neo_13_yellow.webp'),
+
+  // AirPods
+  airpods4: getAistudioAssetUrl('airpods4_a2972c85.webp'),
+  airpods5: getAistudioAssetUrl('airpods5_dc229b1b.webp'),
+  airpodsPro: getAistudioAssetUrl('airpods_pro_b320fb7b.webp'),
+
+  // Canon & Sony
+  canonG7Mark3Grey: getAistudioAssetUrl('canon_g7_mark3_8194c16f.webp'),
+  canonG7Mark3Black: getAistudioAssetUrl('canon_g7_mark3_black_26da4a19.webp'),
+  canonSx740: getAistudioAssetUrl('canon_sx740_90263ea3.webp'),
+  sonyZve10: getAistudioAssetUrl('sony_zve-10_834e1902.webp'),
+
+  // Ray-Ban Meta
+  raybanGen1: getAistudioAssetUrl('rayban_gen1_b810ea73.webp'),
+  raybanGen2: getAistudioAssetUrl('rayban_gen2_aac57857.webp'),
+
+  // DJI
+  djiMicMini: getAistudioAssetUrl('DJI_MIC_mini_97af69ce.webp'),
+  djiMicMiniBlack: getAistudioAssetUrl('DJI_MIC_mini_________97af69ce.webp'),
+  djiOsmoPocket4: getAistudioAssetUrl('DJI_OSMO_pocket_4_standart_2c8adaab.webp'),
+
+  // Yandex Station
+  yandexLite2: getAistudioAssetUrl('____________________2_1e188810.webp'),
+  yandexStreet: getAistudioAssetUrl('_____________________e31516d3.webp'),
+  yandexMidi: getAistudioAssetUrl('____________________518eeb54.webp'),
 };
